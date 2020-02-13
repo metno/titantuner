@@ -8,7 +8,7 @@ import math
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, widgetbox, gridplot
 from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions
-from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select
+from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup
 from bokeh.models.widgets.widget import Widget
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
@@ -38,11 +38,12 @@ class App(object):
         self.sliders = dict()
         # self.sliders["Range"] = RangeSlider(start=-20, end=20, value=[-10,10], step=1, title="Range")
         self.sliders["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations (%)")
-        self.sliders["t2pos"] = Slider(start=0, end=10, value=2, step=0.1, title="T2pos")
+        self.sliders["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos")
         self.sliders["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2")
         self.sliders["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="dzmin")
         self.sliders["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="dhmin")
         self.sliders["dz"] = Slider(start=100, end=1000, value=200, step=100, title="dz")
+        self.sliders["type"] = RadioButtonGroup(labels=["Obs", "SCT", "None"], active=0)
         self.I = None
 
         ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
@@ -82,6 +83,7 @@ class App(object):
 
         frac = self.sliders["frac"].value
         t2pos = self.sliders["t2pos"].value
+        eps2 = self.sliders["eps2"].value
         dhmin = self.sliders["dhmin"].value
         dzmin = self.sliders["dzmin"].value
         dz = self.sliders["dz"].value
@@ -99,8 +101,9 @@ class App(object):
 
         status, sct, flags = titanlib.sct(x_proj, y_proj, self.elevs[Is], self.values[Is], 100, 300, 100,
                 dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2pos * np.ones(len(Is)),
-                np.zeros(len(Is)))
+                eps2 * np.ones(len(Is)))
         # status, flags = titanlib.sct([0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,0,0,0,0,0,0], [0,1,2,3,4,5,6])
+        sct = np.array(sct)
 
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
@@ -109,16 +112,18 @@ class App(object):
         self.texts[0].value = "%f" % (e_time- s_time)
         flags = np.array(flags)
         I = np.where(flags == 0)[0]
-        print(I)
-        print(Is)
-        print(xx)
-        print(yy)
         y0, x0 = np.histogram(self.values[Is[I]], bins=self.edges)
         self.ds3.data = {'top': y0, 'bottom': 0 * y0, 'left': self.edges[:-1], 'right': self.edges[1:]}
         # print(len(I), len(flags))
         self.ds1.data = {'y':yy[Is[I]], 'x':xx[Is[I]]}
         # self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':["%d" % int(t) for t in self.values[Is]]}
-        self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':["%d" % int(t) for t in sct[Is]]}
+        if self.sliders["type"].active == 0:
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':["%d" % (self.values[Is[t]]) for t in range(len(Is))]}
+        elif self.sliders["type"].active == 1:
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':["%.1f" % (sct[Is[t]]) for t in range(len(Is))]}
+        else:
+            self.dt1.data = {'y':[], 'x':[], 'text':[]}
+            #self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':["%.1f %d" % (sct[Is[t]], self.values[Is[t]]) for t in range(len(Is))]}
 
         I = np.where(flags == 1)[0]
         y, x = np.histogram(self.values[Is[I]], bins=self.edges)
@@ -159,7 +164,10 @@ class App(object):
 
 # def main():
 # if __name__ == "__main__":
-app = App()
-app.setup()
-app.run()
+try:
+    app = App()
+    app.setup()
+    app.run()
+except Exception as e:
+    print(e)
 #main()

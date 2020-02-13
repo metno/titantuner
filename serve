@@ -1,2 +1,4 @@
-#!/bin/biash
-bokeh serve --show run.py --port 8080 --allow-websocket-origin=pc4423.pc.met.no:8080
+#!/bin/bash
+host=`hostname -f`
+port=8080
+bokeh serve --show run.py --port $port --allow-websocket-origin=${host}:$port
