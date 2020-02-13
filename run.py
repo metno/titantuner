@@ -36,7 +36,6 @@ class App(object):
         t1 = p.add_glyph(source, glyph)
 
         self.sliders = dict()
-        # self.sliders["Range"] = RangeSlider(start=-20, end=20, value=[-10,10], step=1, title="Range")
         self.sliders["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations (%)")
         self.sliders["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos")
         self.sliders["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2")
@@ -44,7 +43,6 @@ class App(object):
         self.sliders["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="dhmin")
         self.sliders["dz"] = Slider(start=100, end=1000, value=200, step=100, title="dz")
         self.sliders["type"] = RadioButtonGroup(labels=["Obs", "SCT", "None"], active=0)
-        self.I = None
 
         ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
         self.edges = range(-20, 21)
@@ -128,7 +126,7 @@ class App(object):
         I = np.where(flags == 1)[0]
         y, x = np.histogram(self.values[Is[I]], bins=self.edges)
         self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
-        self.texts[1].value = "%g %%" % (100.0 * len(I) / len(self.lats))
+        self.texts[1].value = "%g %%" % (100.0 * len(I) / len(Is))
         self.ds2.data = {'y':yy[Is[I]], 'x':xx[Is[I]]}
     # slider.on_change("value", my_text_input_handler)
 
