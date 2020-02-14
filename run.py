@@ -22,15 +22,15 @@ class App(object):
         ui = dict()
         if value == "sct":
             ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations (%)")
-            ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum box size")
-            ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum box size")
-            ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to create profile")
+            ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
+            ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
+            ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to fit profile")
             ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos")
             ui["t2neg"] = Slider(start=0, end=10, value=4, step=0.1, title="T2neg")
             ui["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2")
-            ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="dzmin")
-            ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="dhmin")
-            ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="dz")
+            ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="Min elev range to fit profile")
+            ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min allowed OI horizontal decorr distance")
+            ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertical OI decorr distance")
             ui["type"] = CheckboxButtonGroup(labels=["Obs", "SCT", "Elev"], active=[0])
             ui["time"] = TextInput(value="None", title="Titanlib request time:")
             ui["removed"] = TextInput(value="None", title="% stations removed")
@@ -179,11 +179,6 @@ class App(object):
 
         self.setup()
 
-    def start(self, lats, lons, elevs, values):
-
-        p = bokeh.plotting.figure()
-        # bokeh.plotting.show(root)
-
 
     def lat2y(self, a):
         RADIUS = 6378137.0 # in meters on the equator
@@ -218,7 +213,6 @@ try:
         values = np.random.randn(N) * 5 + 2
 
     app = App(lats, lons, elevs, values)
-    app.start()
 except Exception as e:
     print(e)
 #main()
