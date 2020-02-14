@@ -1,4 +1,10 @@
 #!/bin/bash
+# To make it visible on the network, use this:
 host=`hostname -f`
+
+# To make it visible only on this computer, use this:
+# host="localhost"
+
 port=8080
-bokeh serve --show run.py --port $port --allow-websocket-origin=${host}:$port
+echo "Open browser to http://$host:$port/run"
+bokeh serve run.py --port $port --allow-websocket-origin=${host}:$port
