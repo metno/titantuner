@@ -1,7 +1,6 @@
 import titanlib
 import numpy as np
 import bokeh.plotting
-import metio.titan
 import time
 import math
 
@@ -172,20 +171,15 @@ class App(object):
     def button_click_callback(self, attr):
         self.my_text_input_handler("value", None, self.ui["frac"].value)
 
-    def run(self):
-        N = 10000
+    def __init__(self, lats, lons, elevs, values):
+        self.lats = lats
+        self.lons = lons
+        self.elevs = elevs
+        self.values = values
 
-        dataset = metio.titan.get([1580947200], 'ta')
-        self.lats = dataset.lats # [0:2000]
-        self.lons = dataset.lons # [0:2000]
-        self.elevs = dataset.elevs # [0:2000]
-        self.values = dataset.values[0, :] # [0, 0:2000]
-        I = np.where((self.lats > 59.3) & (self.lats < 60.1) & (self.lons > 10) & (self.lons < 11.2))[0]
-        # I = range(len(self.lats))
-        self.lats = self.lats[I]
-        self.lons = self.lons[I]
-        self.elevs = self.elevs[I]
-        self.values = self.values[I]
+        self.setup()
+
+    def start(self, lats, lons, elevs, values):
 
         p = bokeh.plotting.figure()
         # bokeh.plotting.show(root)
@@ -202,9 +196,29 @@ class App(object):
 # def main():
 # if __name__ == "__main__":
 try:
-    app = App()
-    app.setup()
-    app.run()
+    if 0:
+        import metio.titan
+        dataset = metio.titan.get([1580947200], 'ta')
+        lats = dataset.lats # [0:2000]
+        lons = dataset.lons # [0:2000]
+        elevs = dataset.elevs # [0:2000]
+        values = dataset.values[0, :] # [0, 0:2000]
+        I = np.where((lats > 59.3) & (lats < 60.1) & (lons > 10) & (lons < 11.2))[0]
+        # I = range(len(lats))
+        lats = lats[I]
+        lons = lons[I]
+        elevs = elevs[I]
+        values = values[I]
+    else:
+        ### Create your own data here
+        N = 1000
+        lats = np.random.randn(N) + 60
+        lons = np.random.randn(N) + 10.7
+        elevs = np.random.rand(N)*200
+        values = np.random.randn(N) * 5 + 2
+
+    app = App(lats, lons, elevs, values)
+    app.start()
 except Exception as e:
     print(e)
 #main()
