@@ -22,14 +22,11 @@ class App(object):
         ui = dict()
         # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
 
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation"], active=self.uiname2id(value))
+        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
-        ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
-        ui["removed"] = TextInput(value="None", title="stations removed [%]")
-        ui["mean"] = TextInput(value="None", title="Average observed [C]")
         if value == "sct":
             ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
             ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
@@ -48,6 +45,14 @@ class App(object):
         elif value == "isolation":
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
+        elif value == "buddy":
+            ui["distance"] = Slider(start=1000, end=10000, value=5000, step=1000, title="Distance limit [m]")
+            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
+            ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
+            ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
+        ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
+        ui["removed"] = TextInput(value="None", title="stations removed [%]")
+        ui["mean"] = TextInput(value="None", title="Average observed [C]")
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
         ui["button"] = button
@@ -124,7 +129,7 @@ class App(object):
         self.set_ui(name)
         self.panel = list(self.ui.values())
 
-    def my_text_input_handler(self, attr, old, new):
+    def button_click_callback(self, attr):
         s_time = time.time()
 
         frac = self.ui["frac"].value
@@ -150,11 +155,8 @@ class App(object):
 
             # status, flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # status, flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
-            import pyproj
-            proj = pyproj.Proj("+proj=lcc +lat_0=63 +lon_0=15 +lat_1=63 +lat_2=63 +no_defs +R=6.371e+06")
-            x_proj, y_proj = proj(self.lons[Is], self.lats[Is],  inv=True)
 
-            status, sct, flags = titanlib.sct(x_proj, y_proj, self.elevs[Is], self.values[Is], nmin, nmax, nminprof,
+            status, sct, flags = titanlib.sct(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], nmin, nmax, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
             sct = np.array(sct)
@@ -177,28 +179,31 @@ class App(object):
         elif self.ui_type == "isolation":
             status, flags = titanlib.isolation_check(self.lats[Is], self.lons[Is], int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
             self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text': ["%d" % t for t in self.values[Is]]}
+        elif self.ui_type == "buddy":
+            status, flags = titanlib.buddy_check(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is],
+                    [self.ui["distance"].value], [self.ui["num"].value],
+                    [self.ui["threshold"].value], self.ui["elev_range"].value, False)
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text': ["%d" % t for t in self.values[Is]]}
+
 
         e_time = time.time()
         self.ui["time"].value = "%f" % (e_time- s_time)
         flags = np.array(flags)
-        I = np.where(flags == 0)[0]
-        y0, x0 = np.histogram(self.values[Is[I]], bins=self.edges)
-        #self.ds4.data = {'x': self.values[Is[I]], 'y':  self.elevs[Is[I]]}
-        self.ds1.data = {'y':yy[Is[I]], 'x':xx[Is[I]]}
+        I0 = np.where(flags == 0)[0]
+        I1 = np.where(flags == 1)[0]
 
-        self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I]]))
-        I = np.where(flags == 1)[0]
-        y, x = np.histogram(self.values[Is[I]], bins=self.edges)
+        y0, x0 = np.histogram(self.values[Is[I0]], bins=self.edges)
+        self.ds1.data = {'y':yy[Is[I0]], 'x':xx[Is[I0]]}
+        self.ds2.data = {'y':yy[Is[I1]], 'x':xx[Is[I1]]}
 
+        self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
+        self.ui["removed"].value = "%g %%" % (100.0 * len(I1) / len(Is))
+
+        # Histogram plot
+        # y, x = np.histogram(self.values[Is[I1]], bins=self.edges)
+        # self.ds4.data = {'x': self.values[Is[I0]], 'y':  self.elevs[Is[I0]]}
         # self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
-        # self.ds3.data = {'x': self.values[Is[I]], 'y':  self.elevs[Is[I]]}
-
-        self.ui["removed"].value = "%g %%" % (100.0 * len(I) / len(Is))
-        self.ds2.data = {'y':yy[Is[I]], 'x':xx[Is[I]]}
-    # slider.on_change("value", my_text_input_handler)
-
-    def button_click_callback(self, attr):
-        self.my_text_input_handler("value", None, self.ui["frac"].value)
+        # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
     def __init__(self, lats, lons, elevs, values):
         self.lats = lats
@@ -222,12 +227,16 @@ class App(object):
             return 0
         elif name == "isolation":
             return 1
+        elif name == "buddy":
+            return 2
 
     def id2uiname(self, id):
         if id == 0:
             return "sct"
         elif id == 1:
             return "isolation"
+        elif id == 2:
+            return "buddy"
 
 # def main():
 # if __name__ == "__main__":
