@@ -22,7 +22,7 @@ class App(object):
         ui = dict()
         # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
 
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy"], active=self.uiname2id(value))
+        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
 
@@ -31,9 +31,9 @@ class App(object):
             ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
             ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
             ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to fit profile")
-            ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos [C]")
-            ui["t2neg"] = Slider(start=0, end=10, value=4, step=0.1, title="T2neg [C]")
-            ui["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2 [C**2]")
+            ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos [%s]" % self.units)
+            ui["t2neg"] = Slider(start=0, end=10, value=4, step=0.1, title="T2neg [%s]" % self.units)
+            ui["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2 [%s**2]" % self.units)
             ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="Min elev range to fit profile [m]")
             ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
             ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertiacal OI distance [m]")
@@ -50,9 +50,18 @@ class App(object):
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
             ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
+            ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
+            ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
+        elif value == "buddy_event":
+            ui["distance"] = Slider(start=1000, end=10000, value=5000, step=1000, title="Distance limit [m]")
+            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
+            ui["threshold"] = Slider(start=0.05, end=5, value=0.1, step=0.05, title="Threshold")
+            ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
+            ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
+            ui["event_threshold"] = Slider(start=0, end=5, value=0.2, step=0.1, title="Event threshold")
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
         ui["removed"] = TextInput(value="None", title="stations removed [%]")
-        ui["mean"] = TextInput(value="None", title="Average observed [C]")
+        ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
         ui["button"] = button
@@ -165,7 +174,10 @@ class App(object):
             for t in range(len(Is)):
                 curr = []
                 if 0 in self.ui["labels"].active:
-                    curr += ["%d" % self.values[Is[t]]]
+                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
+                        curr += ["%.1f" % self.values[Is[t]]]
+                    else:
+                        curr += ["%d" % self.values[Is[t]]]
                 if 1 in self.ui["labels"].active:
                     curr += ["%.1f" % sct[t]]
                 if 2 in self.ui["labels"].active:
@@ -178,12 +190,28 @@ class App(object):
 
         elif self.ui_type == "isolation":
             status, flags = titanlib.isolation_check(self.lats[Is], self.lons[Is], int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
-            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text': ["%d" % t for t in self.values[Is]]}
         elif self.ui_type == "buddy":
             status, flags = titanlib.buddy_check(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
-                    [self.ui["threshold"].value], self.ui["elev_range"].value, False)
-            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text': ["%d" % t for t in self.values[Is]]}
+                    [self.ui["threshold"].value], self.ui["elev_range"].value,
+                    self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value)
+        elif self.ui_type == "buddy_event":
+            status, flags = titanlib.buddy_event_check(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is],
+                    [self.ui["distance"].value], [self.ui["num"].value],
+                    [self.ui["event_threshold"].value],
+                    [self.ui["threshold"].value], self.ui["elev_range"].value,
+                    self.ui["elev_gradient"].value / 1000)
+
+        if self.ui_type is not "sct":
+            texts = []
+            for t in range(len(Is)):
+                curr = []
+                if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
+                    curr += ["%.1f" % self.values[Is[t]]]
+                else:
+                    curr += ["%d" % self.values[Is[t]]]
+                texts += [curr]
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
 
         e_time = time.time()
@@ -205,11 +233,18 @@ class App(object):
         # self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
-    def __init__(self, lats, lons, elevs, values):
+    def __init__(self, lats, lons, elevs, values, variable="ta"):
         self.lats = lats
         self.lons = lons
         self.elevs = elevs
         self.values = values
+        self.variable = variable
+        if variable == "ta":
+            self.units = "C"
+        elif variable == "rr":
+            self.units = "mm/h"
+        else:
+            raise NotImplementedError
 
         self.setup()
 
@@ -229,6 +264,8 @@ class App(object):
             return 1
         elif name == "buddy":
             return 2
+        elif name == "buddy_event":
+            return 3
 
     def id2uiname(self, id):
         if id == 0:
@@ -237,23 +274,29 @@ class App(object):
             return "isolation"
         elif id == 2:
             return "buddy"
+        elif id == 3:
+            return "buddy_event"
 
 # def main():
 # if __name__ == "__main__":
 try:
-    if 0:
+    if 1:
         import metio.titan
-        dataset = metio.titan.get([1580947200], 'ta')
+        # dataset = metio.titan.get([1580947200], 'ta')
+        # dataset = metio.titan.get([1564876800], 'rr')
+        dataset = metio.titan.get([1582362000], 'rr')
+        I = dataset.filter(prids=range(0, 15), latrange=[59.3, 60.1], lonrange=[10, 11.5])
         lats = dataset.lats # [0:2000]
         lons = dataset.lons # [0:2000]
         elevs = dataset.elevs # [0:2000]
         values = dataset.values[0, :] # [0, 0:2000]
-        I = np.where((lats > 59.3) & (lats < 60.1) & (lons > 10) & (lons < 11.5))[0]
+        variable = "rr"
+        # I = np.where((lats > 59.3) & (lats < 60.1) & (lons > 10) & (lons < 11.5))[0]
         # I = range(len(lats))
-        lats = lats[I]
-        lons = lons[I]
-        elevs = elevs[I]
-        values = values[I]
+        # lats = lats[I]
+        # lons = lons[I]
+        # elevs = elevs[I]
+        # values = values[I]
     else:
         ### Create your own data here
         N = 1000
@@ -261,8 +304,9 @@ try:
         lons = np.random.randn(N) + 10.7
         elevs = np.random.rand(N)*200
         values = np.random.randn(N) * 5 + 2
+        variable = "ta"
 
-    app = App(lats, lons, elevs, values)
+    app = App(lats, lons, elevs, values, variable)
 except Exception as e:
     print(e)
 #main()
