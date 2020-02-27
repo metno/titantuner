@@ -3,6 +3,7 @@ import numpy as np
 import bokeh.plotting
 import time
 import math
+import datetime
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, widgetbox, gridplot
@@ -19,8 +20,15 @@ class App(object):
         self.ui = None
 
     def set_ui(self, value):
+        self.ui_name = value
         ui = dict()
         # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
+
+        #dropdown = RadioButtonGroup(labels=[dataset["name"] for dataset in self.datasets], active=self.dataset_index)
+        dropdown = Select(title="Dataset", options=[(i, dataset["name"]) for i, dataset in
+            enumerate(self.datasets)], value=str(self.dataset_index))
+        dropdown.on_change("value", self.choose_dataset_handler)
+        ui["dataset"] = dropdown
 
         dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
@@ -46,7 +54,7 @@ class App(object):
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
         elif value == "buddy":
-            ui["distance"] = Slider(start=1000, end=10000, value=5000, step=1000, title="Distance limit [m]")
+            ui["distance"] = Slider(start=1000, end=20000, value=5000, step=1000, title="Distance limit [m]")
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
             ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
@@ -101,17 +109,8 @@ class App(object):
         #self.ds3 = self.r3.data_source
         #self.ds4 = self.r4.data_source
         self.dt1 = t1.data_source
-        # menuitems = [("Climatology check", "clim"), ("Range check", "range")]
-        # self.menu = Select(title="Check", value="clim", options=menuitems)
-        # self.menu.on_change("value", self.menu_handler)
 
         self.set_root(self.p)
-        #self.panel = list(self.ui.values())
-        ## c = column([self.menu] + self.panel)
-        #c = column(self.panel)
-
-        #root = row(self.p, c)
-        #curdoc().add_root(root)
 
     def set_root(self, p):
         self.panel = list(self.ui.values())
@@ -130,8 +129,9 @@ class App(object):
         root = row(self.p, c)
         curdoc().add_root(root)
 
-    def menu_handler(self, attr, old, new):
-        self.panel = 1
+    def choose_dataset_handler(self, attr, old, new):
+        self.set_dataset(new)
+        self.set_ui(self.ui_name)
 
     def choose_test_handler(self, new):
         name = self.id2uiname(new)
@@ -233,18 +233,28 @@ class App(object):
         # self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
-    def __init__(self, lats, lons, elevs, values, variable="ta"):
-        self.lats = lats
-        self.lons = lons
-        self.elevs = elevs
-        self.values = values
-        self.variable = variable
-        if variable == "ta":
+    def set_dataset(self, index):
+        index = int(index)
+        # names = [dataset["name"] for dataset in self.datasets]
+        # index = names.index(name)
+        self.dataset_index = index
+        print(index)
+        self.lats = self.datasets[index]["lats"]
+        self.lons = self.datasets[index]["lons"]
+        self.elevs = self.datasets[index]["elevs"]
+        self.values = self.datasets[index]["values"]
+        self.variable = self.datasets[index]["variable"]
+        if self.variable == "ta":
             self.units = "C"
-        elif variable == "rr":
+        elif self.variable == "rr":
             self.units = "mm/h"
         else:
             raise NotImplementedError
+
+    def __init__(self, datasets):
+        self.datasets = datasets
+        # self.set_dataset(datasets[0]["name"])
+        self.set_dataset(0)
 
         self.setup()
 
@@ -277,26 +287,41 @@ class App(object):
         elif id == 3:
             return "buddy_event"
 
+def unixtime_to_str(unixtime):
+    dt = datetime.datetime.utcfromtimestamp(int(unixtime))
+    return "%04d-%02d-%02dT%02dZ" % (dt.year, dt.month, dt.day, dt.hour)
+
+def variable_to_str(variable):
+    if variable == "ta":
+        return "Temperature"
+    elif variable == "rr":
+        return "Precipitation"
+    else:
+        raise NotImplementedError
+
 # def main():
 # if __name__ == "__main__":
 try:
-    if 1:
+    if 0:
         import metio.titan
-        # dataset = metio.titan.get([1580947200], 'ta')
-        # dataset = metio.titan.get([1564876800], 'rr')
-        dataset = metio.titan.get([1582362000], 'rr')
-        I = dataset.filter(prids=range(0, 15), latrange=[59.3, 60.1], lonrange=[10, 11.5])
-        lats = dataset.lats # [0:2000]
-        lons = dataset.lons # [0:2000]
-        elevs = dataset.elevs # [0:2000]
-        values = dataset.values[0, :] # [0, 0:2000]
-        variable = "rr"
-        # I = np.where((lats > 59.3) & (lats < 60.1) & (lons > 10) & (lons < 11.5))[0]
-        # I = range(len(lats))
-        # lats = lats[I]
-        # lons = lons[I]
-        # elevs = elevs[I]
-        # values = values[I]
+        datasets = list()
+        settings = dict()
+        # settings["winter_rr"] = [1582362000, 'rr']
+        # settings["summer_rr"] = [1564876800, 'rr']
+        # settings["winter_ta"] = [1580947200, 'ta']
+        # settings["summer_ta"] = [1564833600, 'ta']
+        settings["now"] = [1582786800, 'ta']
+        s_time = time.time()
+
+        for key in settings:
+            # dataset = metio.titan.get([settings[key][0]],settings[key][1], latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            dataset = metio.titan.get([settings[key][0]],settings[key][1], dataset="thomasn")
+            # dataset.filter(prids=range(0, 15), latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            if settings[key][1] == "rr":
+                dataset.filter(prids=range(0, 15))
+            name = "%s: %s" % (variable_to_str(settings[key][1]), unixtime_to_str(settings[key][0]))
+            datasets += [{"name": name, "lats": dataset.lats, "lons": dataset.lons, "elevs": dataset.elevs, "values": dataset.values[0, :], "variable": settings[key][1]}]
+        print("Time to load datasets: %.1fs" % (time.time() - s_time))
     else:
         ### Create your own data here
         N = 1000
@@ -305,8 +330,9 @@ try:
         elevs = np.random.rand(N)*200
         values = np.random.randn(N) * 5 + 2
         variable = "ta"
+        datasets = [{"name": "example", "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
 
-    app = App(lats, lons, elevs, values, variable)
+    app = App(datasets)
 except Exception as e:
     print(e)
 #main()
