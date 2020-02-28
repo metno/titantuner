@@ -3,6 +3,7 @@ import numpy as np
 import bokeh.plotting
 import time
 import math
+import copy
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, widgetbox, gridplot
@@ -34,6 +35,10 @@ class App(object):
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
+        latrange = [np.floor(np.min(self.lats)), np.ceil(np.max(self.lats))]
+        lonrange = [np.floor(np.min(self.lons)), np.ceil(np.max(self.lons))]
+        ui["latrange"] = RangeSlider(start=latrange[0], end=latrange[1], value=latrange, step=0.1, title="Latitude range")
+        ui["lonrange"] = RangeSlider(start=lonrange[0], end=lonrange[1], value=lonrange, step=0.1, title="Longitude range")
         if value == "sct":
             ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
             ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
@@ -68,7 +73,7 @@ class App(object):
             ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["event_threshold"] = Slider(start=0, end=5, value=0.2, step=0.1, title="Event threshold")
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
-        ui["removed"] = TextInput(value="None", title="stations removed [%]")
+        ui["stations"] = TextInput(value="None", title="Stations (removed [%])")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
@@ -87,7 +92,7 @@ class App(object):
 
     def setup(self):
         self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
-                x_axis_type="mercator", y_axis_type="mercator")
+                x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
         self.p.title.text_font_size = "25px"
         self.p.title.align = "center"
 
@@ -96,6 +101,8 @@ class App(object):
 
         r1 = self.p.circle([], [], fill_color="gray", legend="OK", size=20)
         r2 = self.p.circle([], [], fill_color="red", legend="Flagged", size=20)
+        r1change = self.p.circle([], [], fill_color="gray", line_width=3, size=20)
+        r2change = self.p.circle([], [], fill_color="red", line_width=3, size=20)
         source = ColumnDataSource(dict(x=[], y=[], text=[]))
         glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
                 text_baseline="middle")
@@ -106,11 +113,14 @@ class App(object):
 
         self.ds1 = r1.data_source
         self.ds2 = r2.data_source
+        self.ds1change = r1change.data_source
+        self.ds2change = r2change.data_source
         #self.ds3 = self.r3.data_source
         #self.ds4 = self.r4.data_source
         self.dt1 = t1.data_source
 
         self.set_root(self.p)
+        self.old_flags = None
 
     def set_root(self, p):
         self.panel = list(self.ui.values())
@@ -147,6 +157,11 @@ class App(object):
         else:
             np.random.seed(0)
             Is = np.random.randint(0, len(self.lats), int(frac / 100 * len(self.lats)))
+
+        # if self.latrange is not None and self.lonrange is not None:
+
+        Is0 = np.where((self.lats > self.ui["latrange"].value[0]) & (self.lats < self.ui["latrange"].value[1]) & (self.lons > self.ui["lonrange"].value[0]) & (self.lons < self.ui["lonrange"].value[1]))[0]
+        Is = np.intersect1d(Is, Is0)
 
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
@@ -222,11 +237,21 @@ class App(object):
         I1 = np.where(flags == 1)[0]
 
         y0, x0 = np.histogram(self.values[Is[I0]], bins=self.edges)
-        self.ds1.data = {'y':yy[Is[I0]], 'x':xx[Is[I0]]}
-        self.ds2.data = {'y':yy[Is[I1]], 'x':xx[Is[I1]]}
+        if self.old_flags is None:
+            self.ds1.data = {'y':yy[Is[I0]], 'x':xx[Is[I0]]}
+            self.ds2.data = {'y':yy[Is[I1]], 'x':xx[Is[I1]]}
+        else:
+            I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
+            I1new = np.where((flags == 1) & (self.old_flags == 1))[0]
+            I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
+            I1change = np.where((flags == 1) & (self.old_flags == 0))[0]
+            self.ds1.data = {'y':yy[Is[I0new]], 'x':xx[Is[I0new]]}
+            self.ds2.data = {'y':yy[Is[I1new]], 'x':xx[Is[I1new]]}
+            self.ds1change.data = {'y':yy[Is[I0change]], 'x':xx[Is[I0change]]}
+            self.ds2change.data = {'y':yy[Is[I1change]], 'x':xx[Is[I1change]]}
 
         self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
-        self.ui["removed"].value = "%g %%" % (100.0 * len(I1) / len(Is))
+        self.ui["stations"].value = "%d (%.2f %%)" % (len(Is), 100.0 * len(I1) / len(Is))
 
         # Histogram plot
         # y, x = np.histogram(self.values[Is[I1]], bins=self.edges)
@@ -234,12 +259,13 @@ class App(object):
         # self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
+        self.old_flags = copy.deepcopy(flags)
+
     def set_dataset(self, index):
         index = int(index)
         # names = [dataset["name"] for dataset in self.datasets]
         # index = names.index(name)
         self.dataset_index = index
-        print(index)
         self.lats = self.datasets[index]["lats"]
         self.lons = self.datasets[index]["lons"]
         self.elevs = self.datasets[index]["elevs"]
@@ -254,7 +280,6 @@ class App(object):
 
     def __init__(self, datasets):
         self.datasets = datasets
-        # self.set_dataset(datasets[0]["name"])
         self.set_dataset(0)
 
         self.setup()
