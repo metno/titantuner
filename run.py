@@ -19,8 +19,8 @@ def variable_to_str(variable):
 
 
 try:
-    if 1:
-        import metio.titan
+    try:
+        import metio
         datasets = list()
         settings = dict()
         # settings["winter_rr"] = [1582362000, 'rr']
@@ -31,15 +31,17 @@ try:
         s_time = time.time()
 
         for key in settings:
-            dataset = metio.titan.get([settings[key][0]],settings[key][1], latrange=[59.3, 60.1], lonrange=[10, 11.5])
-            # dataset = metio.titan.get([settings[key][0]],settings[key][1], dataset="thomasn")
+            dataset = metio.get([settings[key][0]],settings[key][1], latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            # dataset = metio.get([settings[key][0]],settings[key][1], dataset="thomasn")
+            # dataset = metio.get([settings[key][0]],settings[key][1])
             # dataset.filter(prids=range(0, 15), latrange=[59.3, 60.1], lonrange=[10, 11.5])
             if settings[key][1] == "rr":
                 dataset.filter(prids=range(0, 15))
             name = "%s: %s" % (variable_to_str(settings[key][1]), unixtime_to_str(settings[key][0]))
             datasets += [{"name": name, "lats": dataset.lats, "lons": dataset.lons, "elevs": dataset.elevs, "values": dataset.values[0, :], "variable": settings[key][1]}]
         print("Time to load datasets: %.1fs" % (time.time() - s_time))
-    else:
+    except Exception as e:
+        print("Could not load metio")
         ### Create your own data here
         N = 1000
         lats = np.random.randn(N) + 60
