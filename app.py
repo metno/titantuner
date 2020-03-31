@@ -91,8 +91,10 @@ class App(object):
         self.set_root(self.p)
 
     def setup(self):
-        self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
-                x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
+        # Mercator axes don't seem to work on some systems
+        # self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
+        #         x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
+        self.p = figure(title="Titantuner", sizing_mode='stretch_both', match_aspect=True)
         self.p.title.text_font_size = "25px"
         self.p.title.align = "center"
 

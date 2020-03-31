@@ -7,6 +7,41 @@ import os
 import app
 
 
+def main():
+    if len(sys.argv) == 2:
+        datasets = list()
+        dir = sys.argv[1]
+        if os.path.exists(dir):
+            pass
+        else:
+            print("Could not find data directory '%s'" % dir)
+            sys.exit(1)
+        filenames = os.listdir(dir)
+        if len(filenames) > 100:
+            print("Too many data files")
+            sys.exit(1)
+        for filename in filenames:
+            filename = "%s/%s" % (dir, filename)
+            lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            if filename.find('ta'):
+                variable = 'ta'
+            else:
+                variable = 'rr'
+            name = filename
+            datasets += [{"name": name, "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
+    else:
+        ### Create your own data here
+        N = 1000
+        lats = np.random.randn(N) + 60
+        lons = np.random.randn(N) + 10.7
+        elevs = np.random.rand(N)*200
+        values = np.random.randn(N) * 5 + 2
+        variable = "ta"
+        datasets = [{"name": "example", "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
+
+    application = app.App(datasets)
+
+
 def unixtime_to_str(date, hour):
     year = date // 10000
     month = date // 100 % 100
@@ -51,7 +86,7 @@ def read_titan(filename, latrange=None, lonrange=None):
                 value = float(words[Ivalue])
                 flag = float(words[Iflag])
                 provider = int(words[Iprovider])
-                if provider < 20:
+                if provider > 20:
                     continue
                 lats += [lat]
                 lons += [lon]
@@ -59,7 +94,7 @@ def read_titan(filename, latrange=None, lonrange=None):
                 values += [value]
             except Exception as e:
                 print(e)
-    return lats, lons, elevs, values
+    return np.array(lats), np.array(lons), np.array(elevs), np.array(values)
 
 
 def get_titan_filename(date, hour, variable, dataset='best'):
@@ -79,6 +114,8 @@ def get_titan_filename(date, hour, variable, dataset='best'):
         filename = "/lustre/storeB/immutable/archive/projects/metproduction/yr_short/%d/%02d/%02d/obs_%s_%dT%02dZ.txt" % (year, month, day, variable, date, hour)
     if not os.path.exists(filename):
         return None
+    if os.path.exists(filename):
+        filename = "data/obs_%s_%dT%02dZ.txt" % (variable, date, hour)
     return filename
 
 
@@ -96,43 +133,4 @@ def unixtime_to_date(unixtime):
     return date
 
 
-try:
-    try:
-        datasets = list()
-        settings = dict()
-        # settings["winter_rr"] = [1582362000, 'rr']
-        # settings["summer_rr"] = [1564876800, 'rr']
-        # settings["winter_ta"] = [1580947200, 'ta']
-        # settings["summer_ta"] = [1564833600, 'ta']
-        curr_time = (time.time() // 3600 - 1)* 3600
-        settings["now"] = [unixtime_to_date(curr_time), (int(curr_time) % 3600) // 3600, 'ta']
-        s_time = time.time()
-
-        for key in settings:
-            print(settings[key])
-            filename = get_titan_filename(settings[key][0], settings[key][1], settings[key][2])
-            if os.path.exists(filename):
-                print(filename)
-                lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
-                name = "%s: %s" % (variable_to_str(settings[key][2]), unixtime_to_str(settings[key][0], settings[key][1]))
-                datasets += [{"name": name, "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": settings[key][2]}]
-            else:
-                print("Could not load %s" % filename)
-        print("Time to load datasets: %.1fs" % (time.time() - s_time))
-    except Exception as e:
-        print("Could not load metio. %s" % e)
-        ### Create your own data here
-        N = 1000
-        lats = np.random.randn(N) + 60
-        lons = np.random.randn(N) + 10.7
-        elevs = np.random.rand(N)*200
-        values = np.random.randn(N) * 5 + 2
-        variable = "ta"
-        datasets = [{"name": "example", "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
-
-    application = app.App(datasets)
-except Exception as e:
-    print(e)
-
-
-#main()
+main()

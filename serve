@@ -7,4 +7,4 @@ host=`hostname -f`
 
 port=8080
 echo "Open browser to http://$host:$port/run"
-bokeh serve run.py --port $port --allow-websocket-origin=${host}:$port
+bokeh serve run.py --port $port --allow-websocket-origin=${host}:$port --args $@
