@@ -180,7 +180,7 @@ class App(object):
             # status, flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # status, flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            status, sct, flags = titanlib.sct(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], nmin, nmax, nminprof,
+            status, sct, rep, flags = titanlib.sct(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], nmin, nmax, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
             sct = np.array(sct)
