@@ -30,7 +30,7 @@ class App(object):
         dropdown.on_change("value", self.choose_dataset_handler)
         ui["dataset"] = dropdown
 
-        dropdown = RadioButtonGroup(labels=["SCT", "SCT_rewrite", "Isolation", "Buddy", "Buddy event"], active=self.uiname2id(value))
+        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
 
@@ -42,8 +42,8 @@ class App(object):
         if value == "sct":
             ui["nmin"] = Slider(start=5, end=1000, value=5, step=10, title="Minimum obs in box")
             ui["nmax"] = Slider(start=100, end=3000, value=100, step=100, title="Maximum obs in box")
-            ui["inner_radius"] = Slider(start=100, end=30000, value=4000, step=100, title="Inner radius [m]")
-            ui["outer_radius"] = Slider(start=100, end=30000, value=10000, step=100, title="Outer radius [m]")
+            ui["inner_radius"] = Slider(start=100, end=100000, value=4000, step=100, title="Inner radius [m]")
+            ui["outer_radius"] = Slider(start=100, end=200000, value=10000, step=100, title="Outer radius [m]")
             ui["niterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to fit profile")
             ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos [%s]" % self.units)
@@ -57,18 +57,6 @@ class App(object):
             #self.r4 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="red")
             #self.r3 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="navy")
 
-        elif value == "sct_rewrite":
-            ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
-            ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
-            ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to fit profile")
-            ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos [%s]" % self.units)
-            ui["t2neg"] = Slider(start=0, end=10, value=4, step=0.1, title="T2neg [%s]" % self.units)
-            ui["eps2"] = Slider(start=0, end=2, value=0.5, step=0.1, title="eps2 [%s**2]" % self.units)
-            ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="Min elev range to fit profile [m]")
-            ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
-            ui["inner_radius"] = Slider(start=0, end=20000, value=10000, step=1000, title="")
-            ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertiacal OI distance [m]")
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "SCT", "Elev"], active=[0])
         elif value == "isolation":
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
@@ -219,20 +207,12 @@ class App(object):
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            for key in self.ui:
-                try:
-                    print(key, self.ui[key].value)
-                except:
-                    pass
-            print(self.values[Is])
             flags, sct, rep = titanlib.sct(points, self.values[Is], nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
 
             sct = np.array(sct)
-
-            print(flags, sct)
 
             texts = []
             for t in range(len(Is)):
@@ -252,23 +232,8 @@ class App(object):
             else:
                 self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
-        elif self.ui_type == "sct_rewrite":
-            t2pos = self.ui["t2pos"].value
-            t2neg = self.ui["t2neg"].value
-            eps2 = self.ui["eps2"].value
-            flags = titanlib.sct_rewrite(self.lats[Is], self.lons[Is],
-                    int(self.ui["minnum"].value),
-                    int(self.ui["maxnum"].value),
-                    float(self.ui["inner_radius"]), 0,
-                    int(self.ui["nminprof"].value),
-                    float(self.ui["dzmin"]),
-                    float(self.ui["dhmin"]),
-                    float(self.ui["dz"]),
-                    t2pos * np.ones(len(Is)),
-                    t2neg * np.ones(len(Is)),
-                    eps2 * np.ones(len(Is)))
         elif self.ui_type == "isolation":
-            flags = titanlib.isolation_check(self.lats[Is], self.lons[Is], int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
+            flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
         elif self.ui_type == "buddy":
             flags = titanlib.buddy_check(points, self.values[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
@@ -379,8 +344,6 @@ class App(object):
     def uiname2id(self, name):
         if name == "sct":
             return 0
-        elif name == "sct_rewrite":
-            return 1
         elif name == "isolation":
             return 2
         elif name == "buddy":
@@ -391,8 +354,6 @@ class App(object):
     def id2uiname(self, id):
         if id == 0:
             return "sct"
-        elif id == 1:
-            return "sct_rewrite"
         elif id == 2:
             return "isolation"
         elif id == 3:
