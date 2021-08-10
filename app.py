@@ -345,18 +345,18 @@ class App(object):
         if name == "sct":
             return 0
         elif name == "isolation":
-            return 2
+            return 1
         elif name == "buddy":
-            return 3
+            return 2
         elif name == "buddy_event":
-            return 4
+            return 3
 
     def id2uiname(self, id):
         if id == 0:
             return "sct"
-        elif id == 2:
+        elif id == 1:
             return "isolation"
-        elif id == 3:
+        elif id == 2:
             return "buddy"
-        elif id == 4:
+        elif id == 3:
             return "buddy_event"
