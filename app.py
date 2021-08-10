@@ -1,6 +1,5 @@
 import titanlib
 import numpy as np
-import bokeh.plotting
 import time
 import math
 import copy
