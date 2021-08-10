@@ -2,3 +2,4 @@ scipy
 numpy>=1.7
 future
 bokeh
+titanlib>=0.3.0
