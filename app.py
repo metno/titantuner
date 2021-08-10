@@ -14,7 +14,6 @@ from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 
-
 class App(object):
     def __init__(self):
         self.ui = None
@@ -25,7 +24,7 @@ class App(object):
         # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
 
         #dropdown = RadioButtonGroup(labels=[dataset["name"] for dataset in self.datasets], active=self.dataset_index)
-        dropdown = Select(title="Dataset", options=[(i, dataset["name"]) for i, dataset in
+        dropdown = Select(title="Dataset", options=[("%d" % i, dataset["name"]) for i, dataset in
             enumerate(self.datasets)], value=str(self.dataset_index))
         dropdown.on_change("value", self.choose_dataset_handler)
         ui["dataset"] = dropdown
@@ -40,8 +39,11 @@ class App(object):
         ui["latrange"] = RangeSlider(start=latrange[0], end=latrange[1], value=latrange, step=0.1, title="Latitude range")
         ui["lonrange"] = RangeSlider(start=lonrange[0], end=lonrange[1], value=lonrange, step=0.1, title="Longitude range")
         if value == "sct":
-            ui["nmin"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs in box")
-            ui["nmax"] = Slider(start=100, end=3000, value=300, step=100, title="Maximum obs in box")
+            ui["nmin"] = Slider(start=5, end=1000, value=5, step=10, title="Minimum obs in box")
+            ui["nmax"] = Slider(start=100, end=3000, value=100, step=100, title="Maximum obs in box")
+            ui["inner_radius"] = Slider(start=100, end=30000, value=4000, step=100, title="Inner radius [m]")
+            ui["outer_radius"] = Slider(start=100, end=30000, value=10000, step=100, title="Outer radius [m]")
+            ui["niterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             ui["nminprof"] = Slider(start=50, end=1000, value=100, step=50, title="Minimum obs to fit profile")
             ui["t2pos"] = Slider(start=0, end=10, value=4, step=0.1, title="T2pos [%s]" % self.units)
             ui["t2neg"] = Slider(start=0, end=10, value=4, step=0.1, title="T2neg [%s]" % self.units)
@@ -182,10 +184,14 @@ class App(object):
 
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
+        points = titanlib.Points(self.lats[Is], self.lons[Is], self.elevs[Is])
 
         if self.ui_type == "sct":
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
+            inner_radius = self.ui["inner_radius"].value
+            outer_radius = self.ui["outer_radius"].value
+            niterations = self.ui["niterations"].value
             nminprof = self.ui["nminprof"].value
             t2pos = self.ui["t2pos"].value
             t2neg = self.ui["t2neg"].value
@@ -197,10 +203,20 @@ class App(object):
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            sct, rep, flags = titanlib.sct(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], nmin, nmax, nminprof,
+            for key in self.ui:
+                try:
+                    print(key, self.ui[key].value)
+                except:
+                    pass
+            print(self.values[Is])
+            flags, sct, rep = titanlib.sct(points, self.values[Is], nmin, nmax, inner_radius,
+                    outer_radius, niterations, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
+
             sct = np.array(sct)
+
+            print(flags, sct)
 
             texts = []
             for t in range(len(Is)):
@@ -238,13 +254,13 @@ class App(object):
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(self.lats[Is], self.lons[Is], int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
         elif self.ui_type == "buddy":
-            flags = titanlib.buddy_check(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is],
+            flags = titanlib.buddy_check(points, self.values[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
-                    [self.ui["threshold"].value], self.ui["elev_range"].value,
+                    self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
         elif self.ui_type == "buddy_event":
-            flags = titanlib.buddy_event_check(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is],
+            flags = titanlib.buddy_event_check(points, self.values[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
                     [self.ui["event_threshold"].value],
                     [self.ui["threshold"].value], self.ui["elev_range"].value,
