@@ -17,6 +17,7 @@ def main():
             print("Could not find data directory '%s'" % dir)
             sys.exit(1)
         filenames = os.listdir(dir)
+        filenames.sort()
         if len(filenames) > 100:
             print("Too many data files")
             sys.exit(1)
