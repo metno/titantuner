@@ -60,7 +60,7 @@ class App(object):
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
         elif value == "buddy":
-            ui["distance"] = Slider(start=1000, end=20000, value=5000, step=1000, title="Distance limit [m]")
+            ui["distance"] = Slider(start=1000, end=100000, value=5000, step=1000, title="Distance limit [m]")
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
             ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
@@ -68,12 +68,13 @@ class App(object):
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
         elif value == "buddy_event":
-            ui["distance"] = Slider(start=1000, end=10000, value=5000, step=1000, title="Distance limit [m]")
+            ui["distance"] = Slider(start=1000, end=100000, value=5000, step=1000, title="Distance limit [m]")
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
+            ui["event_threshold"] = Slider(start=0, end=5, value=0.2, step=0.1, title="Event threshold")
             ui["threshold"] = Slider(start=0.05, end=5, value=0.1, step=0.05, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
             ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
-            ui["event_threshold"] = Slider(start=0, end=5, value=0.2, step=0.1, title="Event threshold")
+            ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
         ui["stations"] = TextInput(value="None", title="Stations (removed [%])")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
@@ -242,9 +243,10 @@ class App(object):
         elif self.ui_type == "buddy_event":
             flags = titanlib.buddy_event_check(points, self.values[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
-                    [self.ui["event_threshold"].value],
-                    [self.ui["threshold"].value], self.ui["elev_range"].value,
-                    self.ui["elev_gradient"].value / 1000)
+                    self.ui["event_threshold"].value,
+                    self.ui["threshold"].value, self.ui["elev_range"].value,
+                    self.ui["elev_gradient"].value / 1000,
+                    self.ui["num_iterations"].value)
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
 
