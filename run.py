@@ -23,7 +23,8 @@ def main():
             sys.exit(1)
         for filename in filenames:
             filename = "%s/%s" % (dir, filename)
-            lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            # lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
+            lats, lons, elevs, values = read_titan(filename)
             if filename.find('ta'):
                 variable = 'ta'
             else:
@@ -65,15 +66,17 @@ def read_titan(filename, latrange=None, lonrange=None):
     elevs = list()
     values = list()
     with open(filename, 'r') as file:
-        header = file.readline().split(';')
+        header = file.readline().strip().split(';')
         Ilat = header.index('lat')
         Ilon = header.index('lon')
         Ielev = header.index('elev')
-        Iprovider = header.index('prid')
-        Iflag = header.index('dqc')
+        if 'prid' in header:
+            Iprovider = header.index('prid')
+        else:
+            Iprovider = None
         Ivalue = header.index('value')
         for line in file:
-            words = line.split(';')
+            words = line.strip().split(';')
             lat = float(words[Ilat])
             if latrange is not None and (lat < latrange[0] or lat > latrange[1]):
                 continue
@@ -85,10 +88,10 @@ def read_titan(filename, latrange=None, lonrange=None):
                 elev = float(words[Ielev])
             try:
                 value = float(words[Ivalue])
-                flag = float(words[Iflag])
-                provider = int(words[Iprovider])
-                if provider > 20:
-                    continue
+                if Iprovider is not None:
+                    provider = int(words[Iprovider])
+                    if provider > 20:
+                        continue
                 lats += [lat]
                 lons += [lon]
                 elevs += [elev]
