@@ -26,10 +26,12 @@ the following command:
 
 ## Running titantuner on your own data
 
-Create files like the following (one file for each separate time and variable):
+Titantuner can parse data files organzed as follows:
 
+```
 lon;lat;elev;value
 9.4023;61.5308;928;3.1
 10.6878;60.0513;360;2.6
+```
 
-lat and lon are in degrees, elev in meters, and value is the measurement.
+where lat and lon are in degrees, elev in meters, and value is the measurement. Each row represents one observation, and each file represents observations for one time.
