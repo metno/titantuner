@@ -21,6 +21,8 @@ def main():
             sys.exit(1)
         for filename in filenames:
             filename = "%s/%s" % (dir, filename)
+            if not os.path.isfile(filename):
+                continue
             # lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
             lats, lons, elevs, values = parse_titan_file(filename)
             if filename.find('ta'):
