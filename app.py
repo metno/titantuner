@@ -10,6 +10,7 @@ from bokeh.layouts import column, row, widgetbox, gridplot
 from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions
 from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown
 from bokeh.models.widgets.widget import Widget
+from bokeh.models.renderers import TileRenderer
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
@@ -89,6 +90,14 @@ class App(object):
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
         ui["stations"] = TextInput(value="None", title="Stations (removed [%])")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
+
+        # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
+        dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
+            (Vendors.STAMEN_TERRAIN, "Terain"),
+            (Vendors.STAMEN_TONER, "Toner")])
+        dropdown.on_change("value", self.choose_background_handler)
+        ui["background"] = dropdown
+
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
         ui["button"] = button
@@ -117,8 +126,8 @@ class App(object):
 
         r1 = self.p.circle([], [], fill_color="gray", legend="OK", size=20)
         r2 = self.p.circle([], [], fill_color="red", legend="Flagged", size=20)
-        r1change = self.p.circle([], [], fill_color="gray", line_width=3, size=20)
-        r2change = self.p.circle([], [], fill_color="red", line_width=3, size=20)
+        r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
+        r2change = self.p.circle([], [], fill_color="red", line_color="orange", line_width=2, size=20)
         source = ColumnDataSource(dict(x=[], y=[], text=[]))
         glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
                 text_baseline="middle")
@@ -162,6 +171,10 @@ class App(object):
         self.set_dataset(new)
         self.set_ui(self.ui_name)
 
+    def choose_background_handler(self, attr, old, new):
+        self.set_background(new)
+        # self.set_ui(self.ui_name)
+
     def choose_test_handler(self, new):
         name = self.id2uiname(new)
         self.set_ui(name)
@@ -181,6 +194,9 @@ class App(object):
 
         Is0 = np.where((self.lats > self.ui["latrange"].value[0]) & (self.lats < self.ui["latrange"].value[1]) & (self.lons > self.ui["lonrange"].value[0]) & (self.lons < self.ui["lonrange"].value[1]))[0]
         Is = np.intersect1d(Is, Is0)
+
+        self.last_latrange = self.ui["latrange"].value
+        self.last_lonrange = self.ui["lonrange"].value
 
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
@@ -265,6 +281,8 @@ class App(object):
                     [self.ui["event_threshold"].value],
                     [self.ui["threshold"].value], self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000)
+        elif self.ui_type is None:
+            flags = np.zeros(len(Is))
 
         if self.ui_type is not "sct":
             texts = []
@@ -285,6 +303,8 @@ class App(object):
         I1 = np.where(flags == 1)[0]
 
         y0, x0 = np.histogram(self.values[Is[I0]], bins=self.edges)
+        if self.old_flags is not None and (flags.shape != self.old_flags.shape):
+            self.old_flags = None
         if self.old_flags is None:
             self.ds1.data = {'y':yy[Is[I0]], 'x':xx[Is[I0]]}
             self.ds2.data = {'y':yy[Is[I1]], 'x':xx[Is[I1]]}
@@ -315,6 +335,7 @@ class App(object):
         self.old_flags = copy.deepcopy(flags)
 
     def set_dataset(self, index):
+        self.old_flags = None
         index = int(index)
         # names = [dataset["name"] for dataset in self.datasets]
         # index = names.index(name)
@@ -331,12 +352,21 @@ class App(object):
         else:
             raise NotImplementedError
 
+    def set_background(self, value):
+        tile_provider = get_provider(value)
+        # Replace the tile renderer
+        found = None
+        for i, r in enumerate(self.p.renderers):
+            if isinstance(r, TileRenderer):
+                found = i
+        if found is not None:
+            self.p.renderers[found] = TileRenderer(tile_source=tile_provider)
+
     def __init__(self, datasets):
         self.datasets = datasets
         self.set_dataset(0)
 
         self.setup()
-
 
     def lat2y(self, a):
         RADIUS = 6378137.0 # in meters on the equator
