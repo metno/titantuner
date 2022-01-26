@@ -12,7 +12,7 @@ pip3 install -r requirements.txt
 ## Running titantuner on synthetic data
 
 ```bash
-./serve data
+./serve
 ```
 This starts a webserver locally on your computer, making the titantuner available in the browser.
 
