@@ -1,0 +1,45 @@
+apiVersion: automaticTuning/v1
+name: generic
+
+testName: BuddyCheck 
+spec:
+  seedingStrategy:
+    method: "fixed" # add, factor
+    value: 0
+  parameters:
+    fixedParameter:
+      radius: 10
+      somethingElse: "specialthing"
+    tunningParameters:
+      threhold:
+        min: 10
+        max: 20
+      threshold:
+        startingValue: 100
+  scoring:
+    name: ETS (equitable threat score)
+    tolerance: 0.001
+
+---
+
+apiVersion: calculateStatistics/v1
+name: generic
+
+testName: BuddyCheck 
+spec:
+  seedingStrategy:
+    method: "factor" # add, fixed
+    value: 2
+  parameters:
+    fixedParameter:
+      radius: 10
+    tunningParameters:
+      threhold:
+        min: 10
+        max: 20
+        step: 1
+      threshold:
+        startingValue: 100
+  scoring: [ hitRate, falseAlarm ] 
+  output: myfile.txt
+
