@@ -126,6 +126,30 @@ def gen_error_temperature() -> int:
     return random.choice([-5, -3, -2, -1, 1, 2, 3, 5])
 
 
+def make_h_far_plot(
+    hit_rates: np.ndarray,
+    false_alarm_rates: np.ndarray,
+    thresholds: np.ndarray,
+):
+    fig, ax = plt.subplots()
+    ax.plot(false_alarm_rates, hit_rates)
+
+    for i in range(len(hit_rates)):
+        ax.text(false_alarm_rates[i], hit_rates[i], str(thresholds[i]) + "σ")
+
+    ax.plot([0, 1], [0, 1], linestyle="dotted", color="gray")
+    ax = plot_iso_performance_lines(ax, m)
+
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+
+    ax.set_xlabel("False alarm rate")
+    ax.set_ylabel("Hit rate")
+
+    fig.show()
+    fig.savefig("hfar.png", dpi=300)
+
+
 def main():
     # locations = titanlib.Points([60, 60.1, 60.2], [10, 10, 10], [0, 0, 0])
     # values = [0, 1, 1]
@@ -170,25 +194,7 @@ def main():
         print("false_alarm_rate: ", false_alarm_rate)
         print("cost: ", cost)
 
-    print("making plots")
-    fig, ax = plt.subplots()
-    ax.plot(false_alarm_rates, hit_rates)
-
-    for i in range(len(hit_rates)):
-        ax.text(false_alarm_rates[i], hit_rates[i], str(thresholds[i]) + "σ")
-
-    ax.plot([0, 1], [0, 1], linestyle="dotted", color="gray")
-    ax = plot_iso_performance_lines(ax, m)
-
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-
-    ax.set_xlabel("False alarm rate")
-    ax.set_ylabel("Hit rate")
-
-    fig.show()
-    fig.savefig("hfar.png", dpi=300)
-    print("showed plots")
+    make_h_far_plot(hit_rates, false_alarm_rates, thresholds)
 
 
 if __name__ == "__main__":
