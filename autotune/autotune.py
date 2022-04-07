@@ -150,6 +150,17 @@ def make_h_far_plot(
     fig.savefig("hfar.png", dpi=300)
 
 
+def make_threshold_cost_plot(thresholds: np.ndarray, costs: np.ndarray):
+    fig, ax = plt.subplots()
+    ax.plot(thresholds, costs)
+
+    ax.set_xlabel("Threshold (in standard deviations)")
+    ax.set_ylabel("Cost")
+
+    fig.show()
+    fig.savefig("cost_threshold.png", dpi=300)
+
+
 def main():
     # locations = titanlib.Points([60, 60.1, 60.2], [10, 10, 10], [0, 0, 0])
     # values = [0, 1, 1]
@@ -195,6 +206,7 @@ def main():
         print("cost: ", cost)
 
     make_h_far_plot(hit_rates, false_alarm_rates, thresholds)
+    make_threshold_cost_plot(thresholds, costs)
 
 
 if __name__ == "__main__":
