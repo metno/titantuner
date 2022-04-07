@@ -5,6 +5,8 @@ import random
 from typing import Callable, Union, Tuple
 import numpy as np
 import sys
+import math
+import matplotlib.pyplot as plt
 
 # from functools import reduce
 
@@ -15,7 +17,9 @@ numeric = Union[int, float]
 m = 0.5
 
 
-def gen_errors(values: np.ndarray, num_errors: int) -> np.ndarray:
+def gen_errors(
+    values: np.ndarray, num_errors: int, gen_func: Callable[[], int]
+) -> np.ndarray:
     assert num_errors <= len(values)
     error_indices = random.sample(
         range(len(values)), num_errors
@@ -24,7 +28,7 @@ def gen_errors(values: np.ndarray, num_errors: int) -> np.ndarray:
     errors = np.zeros(len(values))
 
     for i in error_indices:
-        errors[i] = 1
+        errors[i] = gen_func()
 
     return errors
 
@@ -106,38 +110,85 @@ def precipitation_errorfunc(error: int, value: float) -> float:
     return value
 
 
+def temperature_errorfunc(error: int, value: float) -> float:
+    if error != 0:
+        return value + error
+    return value
+
+
+def plot_iso_performance_lines(ax, m):
+    for i in [x / 10.0 for x in range(-math.ceil(m) * 10, 10, 1)]:
+        ax.plot([0, 1], [i, m + i], linestyle="dashed", color="gray")
+    return ax
+
+
+def gen_error_temperature() -> int:
+    return random.choice([-5, -3, -2, -1, 1, 2, 3, 5])
+
+
 def main():
     # locations = titanlib.Points([60, 60.1, 60.2], [10, 10, 10], [0, 0, 0])
     # values = [0, 1, 1]
     locations, values = read_QCed_netatmo_data(sys.argv[1])
 
-    errors = gen_errors(values, len(values) // 10)
+    errors = gen_errors(values, len(values) // 10, gen_error_temperature)
     seeded_values = seed_errors(values, errors, precipitation_errorfunc)
 
     # print("seeded_values: ", seeded_values)
 
-    results = titanlib.buddy_check(
-        locations,
-        seeded_values,
-        [5000],
-        [2],
-        0.5,
-        200,
-        0,
-        1,
-        2,
-    )
+    hit_rates = []
+    false_alarm_rates = []
+    costs = []
+    thresholds = [x / 10.0 for x in range(5, 50, 5)]
+    for threshold in thresholds:
+        print("-- TESTING WITH threshold: ", threshold, " --")
 
-    # print("results: ", results)
-    # print("flag_count: ", reduce(lambda x, y: x + y, results))
+        results = titanlib.buddy_check(
+            locations,
+            seeded_values,
+            [10000],
+            [3],
+            threshold,
+            200,
+            0,
+            1,
+            3,
+        )
 
-    hit_rate, false_alarm_rate = calc_hit_FR_rates(results, errors)
+        # print("results: ", results)
+        # print("flag_count: ", reduce(lambda x, y: x + y, results))
 
-    cost = cost_function(hit_rate, false_alarm_rate, m)
+        hit_rate, false_alarm_rate = calc_hit_FR_rates(results, errors)
 
-    print("hit_rate: ", hit_rate)
-    print("false_alarm_rate: ", false_alarm_rate)
-    print("cost: ", cost)
+        cost = cost_function(hit_rate, false_alarm_rate, m)
+
+        hit_rates.append(hit_rate)
+        false_alarm_rates.append(false_alarm_rate)
+        costs.append(cost)
+
+        print("hit_rate: ", hit_rate)
+        print("false_alarm_rate: ", false_alarm_rate)
+        print("cost: ", cost)
+
+    print("making plots")
+    fig, ax = plt.subplots()
+    ax.plot(false_alarm_rates, hit_rates)
+
+    for i in range(len(hit_rates)):
+        ax.text(false_alarm_rates[i], hit_rates[i], str(thresholds[i]) + "σ")
+
+    ax.plot([0, 1], [0, 1], linestyle="dotted", color="gray")
+    ax = plot_iso_performance_lines(ax, m)
+
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+
+    ax.set_xlabel("False alarm rate")
+    ax.set_ylabel("Hit rate")
+
+    fig.show()
+    fig.savefig("hfar.png", dpi=300)
+    print("showed plots")
 
 
 if __name__ == "__main__":
