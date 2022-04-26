@@ -2,11 +2,12 @@
 
 import titanlib
 import random
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, Tuple, List
 import numpy as np
 import sys
 import math
 import matplotlib.pyplot as plt
+import scipy.optimize as opt
 
 # from functools import reduce
 
@@ -161,13 +162,13 @@ def make_threshold_cost_plot(thresholds: np.ndarray, costs: np.ndarray):
     fig.savefig("cost_threshold.png", dpi=300)
 
 
-def main():
+def make_charts():
     # locations = titanlib.Points([60, 60.1, 60.2], [10, 10, 10], [0, 0, 0])
     # values = [0, 1, 1]
     locations, values = read_QCed_netatmo_data(sys.argv[1])
 
     errors = gen_errors(values, len(values) // 10, gen_error_temperature)
-    seeded_values = seed_errors(values, errors, precipitation_errorfunc)
+    seeded_values = seed_errors(values, errors, temperature_errorfunc)
 
     # print("seeded_values: ", seeded_values)
 
@@ -207,6 +208,52 @@ def main():
 
     make_h_far_plot(hit_rates, false_alarm_rates, thresholds)
     make_threshold_cost_plot(thresholds, costs)
+
+
+def gen_optimiseable(
+    locations: titanlib.Points,
+    errors: np.ndarray,
+    seeded_values: np.ndarray,
+) -> Callable[[List[float]], float]:
+    def optimiseable(threshold: List[float]) -> float:
+        results = titanlib.buddy_check(
+            locations,
+            seeded_values,
+            [10000],
+            [3],
+            threshold[0],
+            200,
+            0,
+            1,
+            3,
+        )
+
+        hit_rate, false_alarm_rate = calc_hit_FR_rates(results, errors)
+
+        cost = cost_function(hit_rate, false_alarm_rate, m)
+        print("threshold:", threshold)
+        print("cost:", cost)
+        print("---")
+        return cost
+
+    return optimiseable
+
+
+def minimise_cost():
+    locations, values = read_QCed_netatmo_data(sys.argv[1])
+
+    errors = gen_errors(values, len(values) // 10, gen_error_temperature)
+    seeded_values = seed_errors(values, errors, temperature_errorfunc)
+
+    optimiseable = gen_optimiseable(locations, errors, seeded_values)
+    res = opt.minimize(optimiseable, [2.0], method="Nelder-Mead")
+
+    print(res)
+
+
+def main():
+    # make_charts()
+    minimise_cost()
 
 
 if __name__ == "__main__":
