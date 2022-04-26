@@ -2,7 +2,7 @@
 
 import titanlib
 import random
-from typing import Callable, Union, Tuple, List
+from typing import Callable, Union, Tuple, Sequence
 import numpy as np
 import sys
 import math
@@ -214,14 +214,14 @@ def gen_optimiseable(
     locations: titanlib.Points,
     errors: np.ndarray,
     seeded_values: np.ndarray,
-) -> Callable[[List[float]], float]:
-    def optimiseable(threshold: List[float]) -> float:
+) -> Callable[[Sequence[float]], float]:
+    def optimiseable(params: Sequence[float]) -> float:
         results = titanlib.buddy_check(
             locations,
             seeded_values,
-            [10000],
-            [3],
-            threshold[0],
+            np.full(locations.size(), params[0]),
+            np.full(locations.size(), params[1]),
+            params[2],
             200,
             0,
             1,
@@ -231,7 +231,7 @@ def gen_optimiseable(
         hit_rate, false_alarm_rate = calc_hit_FR_rates(results, errors)
 
         cost = cost_function(hit_rate, false_alarm_rate, m)
-        print("threshold:", threshold)
+        print("params:", params)
         print("cost:", cost)
         print("---")
         return cost
@@ -246,7 +246,7 @@ def minimise_cost():
     seeded_values = seed_errors(values, errors, temperature_errorfunc)
 
     optimiseable = gen_optimiseable(locations, errors, seeded_values)
-    res = opt.minimize(optimiseable, [2.0], method="Nelder-Mead")
+    res = opt.minimize(optimiseable, [10000, 3, 1.0], method="Nelder-Mead")
 
     print(res)
 
