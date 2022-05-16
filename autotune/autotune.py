@@ -246,7 +246,12 @@ def minimise_cost():
     seeded_values = seed_errors(values, errors, temperature_errorfunc)
 
     optimiseable = gen_optimiseable(locations, errors, seeded_values)
-    res = opt.minimize(optimiseable, [10000, 3, 1.0], method="Nelder-Mead")
+    res = opt.minimize(
+        optimiseable,
+        (10000, 3, 1.0),
+        method="Nelder-Mead",
+        bounds=((0, None), (1, None), (0, None)),
+    )
 
     print(res)
 
