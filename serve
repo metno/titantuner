@@ -5,6 +5,7 @@ host=`hostname -f`
 # To make it visible only on this computer, use this:
 # host="localhost"
 
-port=8080
+#port=8080
+port=8081
 echo "Open browser to http://$host:$port/run"
 bokeh serve run.py --port $port --allow-websocket-origin=${host}:$port --args $@
