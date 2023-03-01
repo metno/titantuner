@@ -1,5 +1,5 @@
 scipy
 numpy>=1.7
 future
-bokeh
+bokeh<3
 titanlib>=0.3.0
