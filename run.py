@@ -17,7 +17,7 @@ def main():
         filenames = os.listdir(dir)
         filenames.sort()
         if len(filenames) > 100:
-            print("Too many data files")
+            print("Too many data files (expect max 100 files)")
             sys.exit(1)
         for filename in filenames:
             filename = "%s/%s" % (dir, filename)
