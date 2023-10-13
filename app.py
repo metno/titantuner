@@ -191,8 +191,8 @@ class App(object):
         tile_provider = get_provider(Vendors.CARTODBPOSITRON)
         self.p.add_tile(tile_provider)
 
-        r1 = self.p.circle([], [], fill_color="gray", legend="OK", size=20)
-        r2 = self.p.circle([], [], fill_color="red", legend="Flagged", size=20)
+        r1 = self.p.circle([], [], fill_color="gray", legend_label="OK", size=20)
+        r2 = self.p.circle([], [], fill_color="red", legend_label="Flagged", size=20)
         r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
         r2change = self.p.circle([], [], fill_color="red", line_color="orange", line_width=2, size=20)
         source = ColumnDataSource(dict(x=[], y=[], text=[]))
@@ -652,7 +652,7 @@ class App(object):
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
 
-        if self.ui_type is not "sct" and self.ui_type is not "sctres" and self.ui_type is not "fgt" and self.ui_type is not "sctdual":
+        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" and self.ui_type != "sctdual":
             texts = []
             for t in range(len(Is)):
                 curr = []
