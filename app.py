@@ -6,7 +6,7 @@ import copy
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, gridplot
-from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions
+from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions, BoxZoomTool
 from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown
 from bokeh.models.widgets.widget import Widget
 from bokeh.models.renderers import TileRenderer
@@ -184,7 +184,8 @@ class App(object):
         # Mercator axes don't seem to work on some systems
         # self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
         #         x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
-        self.p = figure(title="Titantuner", sizing_mode='stretch_both', match_aspect=True)
+        self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both', match_aspect=True)
+        self.p.add_tools(BoxZoomTool(match_aspect=True))
         self.p.title.text_font_size = "25px"
         self.p.title.align = "center"
 
