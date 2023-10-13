@@ -14,7 +14,7 @@ pip3 install -r requirements.txt
 ```bash
 ./serve
 ```
-This starts a webserver locally on your computer, making the titantuner available in the browser.
+This starts a webserver locally on your computer, making the titantuner available in the browser. Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT resistant, SCT dual, First Guess), and set the test parameters in the UI. Then click on the update button (below the parameters) to see the map showing the results of the tests.
 
 ## Running titantuner on sample data
 
@@ -36,3 +36,17 @@ lon;lat;elev;value
 ```
 
 where lat and lon are in degrees, elev in meters, and value is the measurement. Each row represents one observation, and each file represents observations for one time.
+
+
+## Using the autotune function (beta version)
+
+Ongoing development. This function aims at finding optimized parameters for quality control methods. When running the autotune function as it is, three parameters are optimized for the buddy check run on temperature observations. These optimized parameters are the search radius, the minimum number of buddies a station can have, and the variance threshold for flagging the station.
+```bash
+./autotune/autotune.py obs_ta_20230924T12Z.txt
+```
+With obs_ta_20230924T12Z.txt containing 5 columns of data (temperature values) following this format:
+```
+lat;lon;elev;value;prid;dqc
+61.1697;10.4107;205.0;13.70;5;0
+58.2968;8.4620;70.0;14.60;5;7
+```
