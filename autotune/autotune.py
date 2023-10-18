@@ -28,10 +28,9 @@ def gen_errors(
     If values[i] should stay unchanged, errors[i] is set to 0.
     Note: in this function only the length of the value array is used, not the values themselves
     '''
-    assert num_errors <= len(values)
     error_indices = random.sample(
         range(len(values)), num_errors
-    )  # FIXME: maybe we don't need the assert? I think this throws an exception in the same case
+    )
 
     errors = np.zeros(len(values))
 
@@ -233,8 +232,8 @@ def make_charts():
         results = titanlib.buddy_check(
             locations,
             seeded_values,
-            [10000], # radius
-            [3], # number min of stations
+            np.full(locations.size(), 10000), # radius
+            np.full(locations.size(), 3), # number min of stations
             threshold,
             200, # max elev diff
             0, #elev gradient
