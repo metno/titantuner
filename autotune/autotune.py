@@ -9,6 +9,9 @@ import math
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
+print('titanlib version:', titanlib.version())
+print('----')
+
 # from functools import reduce
 
 # typedefs
@@ -216,6 +219,10 @@ def make_charts():
     num_error = len(values) // 10
     print('number of observations:', len(values) )
     print('number of generated errors:', num_error)
+    print("---")
+    if(len(values)==0):
+        print("WARNING, No valid observation. Autotune.py can't make charts.")
+        return(0)
     
     errors = gen_errors(values, num_error, gen_error_temperature)
     seeded_values = seed_errors(values, errors, temperature_errorfunc)
@@ -228,7 +235,6 @@ def make_charts():
     thresholds = [x / 10.0 for x in range(5, 50, 5)]
     for threshold in thresholds:
         print("-- TESTING WITH threshold: ", threshold, " --")
-
         results = titanlib.buddy_check(
             locations,
             seeded_values,
@@ -303,6 +309,9 @@ def minimise_cost():
     print('number of observations:', len(values))
     print('number of generated errors:', num_error)
     print("---")
+    if(len(values)==0):
+        print("WARNING, No valid observation. Autotune.py can't give optimized parameters.")
+        return(0)
     errors = gen_errors(values, num_error, gen_error_temperature)
     seeded_values = seed_errors(values, errors, temperature_errorfunc)
 
@@ -311,14 +320,14 @@ def minimise_cost():
         optimiseable,
         (10000, 3, 1.0),
         method="Nelder-Mead", # initial radius, num_min, threshold
-        bounds=((0, None), (1, None), (0, None)),
+        bounds=((0, None), (1, 10), (0.5, 10)),
     )
 
     print(res)
 
 
 def main():
-    # make_charts()
+    make_charts()
     minimise_cost()
 
 
