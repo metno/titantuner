@@ -38,7 +38,7 @@ def load(directory: str) -> list:
         else:
             variable = 'rr'
         print(f"Opening {filename}. Variable {variable}.")
-        name = filename
+        name = os.path.basename(filename)
         datasets += [{"name": name, "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
     return datasets
 
