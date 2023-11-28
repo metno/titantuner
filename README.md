@@ -18,11 +18,11 @@ pip3 install .
 ## Running titantuner
 
 ```bash
-titantuner [-p port]
+titantuner [-p <port>] [-d <datadir>]
 ```
 This starts a webserver locally on your computer, making the titantuner available in the browser. Use `-p` to
-speicy the port, otherwise it will appear on port 8081. Some sample data from Norwegian Synop stations are
-provided by default.
+specify the port, otherwise it will appear on port 8081. Titantuner will load whatever data is available in
+<datadir>. If this is not provided, then some sample data from Norwegian Synop stations are provided.
 
 Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT resistant, SCT dual, First
 Guess), and set the test parameters in the UI. Then click on the update button (below the parameters)
@@ -39,9 +39,8 @@ lon;lat;elev;value
 ```
 
 where lat and lon are in degrees, elev in meters, and value is the measurement. Each row represents one
-observation, and each file represents observations for one time.
-
-Supply a data directory when starting titantuner, which will load all data files in that directory:
+observation, and each file represents observations for one time. Put this file in a data directory and supply
+this when starting titantuner:
 
 ```bash
 titantuner -d <datadir>
