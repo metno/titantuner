@@ -13,10 +13,6 @@ def main():
     parser.add_argument('-d', help='Directory with data', dest="directory")
     parser.add_argument('-p', type=int, default=8081, dest="port")
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-
     args = parser.parse_args()
     run(**vars(args))
 
