@@ -25,11 +25,14 @@ dependencies = [
 
 dynamic = ["version"]
 
+[project.scripts]
+titantuner = "titantuner:main"
+
 [tool.setuptools.packages.find]
-include = ["titantuner"] 
+include = ["titantuner"]
 
 [tool.setuptools.dynamic]
 version = {attr = "titantuner.VERSION"}
 
-[project.scripts]
-titantuner = "titantuner:main"
+[tool.setuptools.package-data]
+titantuner = ["data/*.txt"]

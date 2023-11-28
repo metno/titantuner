@@ -3,7 +3,16 @@ import sys
 import numpy as np
 
 
-def load(directory):
+def load_default() -> list:
+    """Loads data from the default data directory"""
+    return load(get_default_data_dir())
+
+def get_default_data_dir() -> str:
+    curr_dir = os.path.dirname(__file__)
+    return curr_dir + "/data"
+
+def load(directory: str) -> list:
+    """Loads data from a specified directory and returns a list of datasets"""
     datasets = list()
     if os.path.exists(directory):
         pass

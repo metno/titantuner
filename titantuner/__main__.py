@@ -10,7 +10,7 @@ import titantuner
 
 def main():
     parser = argparse.ArgumentParser(description='Launches a titantuner server')
-    parser.add_argument('directory', help='Directory with data')
+    parser.add_argument('-d', help='Directory with data', dest="directory")
     parser.add_argument('-p', type=int, default=8081, dest="port")
 
     if len(sys.argv) == 1:
@@ -21,6 +21,7 @@ def main():
     run(**vars(args))
 
 def run(directory, port):
+    app_handle = lambda doc: application(doc, directory)
     server = Server(
             app_handle,  # list of Bokeh applications
             port=port,
@@ -34,8 +35,11 @@ def run(directory, port):
     server.io_loop.start()
     # titantuner.run.main()
 
-def app_handle(doc):
-    datasets = titantuner.dataset.load(sys.argv[1])
+def application(doc, directory):
+    if directory is None:
+        datasets = titantuner.dataset.load_default()
+    else:
+        datasets = titantuner.dataset.load(directory)
     application = titantuner.app.App(datasets, doc)
 
 if __name__ == "__main__":
