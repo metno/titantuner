@@ -15,8 +15,12 @@ from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 
 class App(object):
-    def __init__(self):
+    def __init__(self, datasets):
+        self.datasets = datasets
+        self.set_dataset(0)
         self.ui = None
+
+        self.setup()
 
     def set_ui(self, value):
         self.ui_name = value
@@ -43,7 +47,7 @@ class App(object):
         # SCT
         if value == "sct":
             ui["nmin"] = Slider(start=5, end=1000, value=5, step=10, title="Minimum obs in box")
-            ui["nmax"] = Slider(start=100, end=3000, value=100, step=100, title="Maximum obs in box")
+            ui["nmax"] = Slider(start=10, end=300, value=20, step=10, title="Maximum obs in box")
             ui["inner_radius"] = Slider(start=100, end=100000, value=4000, step=100, title="Inner radius [m]")
             ui["outer_radius"] = Slider(start=100, end=200000, value=10000, step=100, title="Outer radius [m]")
             ui["niterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
@@ -300,7 +304,7 @@ class App(object):
                 curr = []
                 if 0 in self.ui["labels"].active:
                     if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.1f" % self.values[Is[t]]]
+                        curr += ["%.2f" % self.values[Is[t]]]
                     else:
                         curr += ["%d" % self.values[Is[t]]]
                 if 1 in self.ui["labels"].active:
@@ -736,12 +740,6 @@ class App(object):
                 found = i
         if found is not None:
             self.p.renderers[found] = TileRenderer(tile_source=tile_provider)
-
-    def __init__(self, datasets):
-        self.datasets = datasets
-        self.set_dataset(0)
-
-        self.setup()
 
     def lat2y(self, a):
         RADIUS = 6378137.0 # in meters on the equator

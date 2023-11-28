@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "titantuner"
+authors = [
+    {name = "Thomas Nipen", email = "thomasnn@met.no"}
+]
+description = "A package for tuning quality control parameters in titanlib"
+keywords = ["meteorology", "observations", "quality control"]
+license = {text = "MIT"}
+readme = "README.md"
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Programming Language :: Python :: 3',
+    ]
+dependencies = [
+    "titanlib>=0.3.3",
+    "bokeh",
+    "numpy",
+    "scipy",
+]
+
+dynamic = ["version"]
+
+[tool.setuptools.packages.find]
+include = ["titantuner"] 
+
+[tool.setuptools.dynamic]
+version = {attr = "titantuner.VERSION"}
+
+[project.scripts]
+titantuner = "titantuner:main"

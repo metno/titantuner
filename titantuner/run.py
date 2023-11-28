@@ -2,10 +2,11 @@ import numpy as np
 import sys
 import os
 
-import app
+import titantuner.app
 
 
 def main():
+    print(sys.argv)
     if len(sys.argv) == 2:
         datasets = list()
         dir = sys.argv[1]
@@ -25,10 +26,13 @@ def main():
                 continue
             # lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
             lats, lons, elevs, values = parse_titan_file(filename)
-            if filename.find('ta'):
+            print(filename)
+            print(filename.find('_ta_'))
+            if filename.find('_ta_') >= 0:
                 variable = 'ta'
             else:
                 variable = 'rr'
+            print(variable)
             name = filename
             datasets += [{"name": name, "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
     else:
@@ -41,7 +45,7 @@ def main():
         variable = "ta"
         datasets = [{"name": "example", "lats": lats, "lons": lons, "elevs": elevs, "values": values, "variable": variable}]
 
-    application = app.App(datasets)
+    application = titantuner.app.App(datasets)
 
 
 def parse_titan_file(filename, latrange=None, lonrange=None):
@@ -74,10 +78,12 @@ def parse_titan_file(filename, latrange=None, lonrange=None):
                 elev = float(words[Ielev])
             try:
                 value = float(words[Ivalue])
+                """
                 if Iprovider is not None:
                     provider = int(words[Iprovider])
                     if provider > 20:
                         continue
+                """
                 lats += [lat]
                 lons += [lon]
                 elevs += [elev]
