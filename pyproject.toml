@@ -16,10 +16,11 @@ classifiers = [
     'Programming Language :: Python :: 3',
     ]
 dependencies = [
-    "titanlib>=0.3.3",
-    "bokeh",
+    "bokeh<3",
+    "matplotlib",
     "numpy",
     "scipy",
+    "titanlib>=0.3.3",
 ]
 
 dynamic = ["version"]

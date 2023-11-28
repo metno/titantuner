@@ -13,14 +13,17 @@ from bokeh.models.renderers import TileRenderer
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
+import bokeh.application
 
-class App(object):
-    def __init__(self, datasets):
+class App():
+    def __init__(self, datasets, doc):
         self.datasets = datasets
+        self.doc = doc
+
         self.set_dataset(0)
         self.ui = None
-
         self.setup()
+        # self.button_click_callback(None)
 
     def set_ui(self, value):
         self.ui_name = value
@@ -228,10 +231,11 @@ class App(object):
         c = column(self.panel)
 
         root = row(self.p, c)
-        curdoc().clear()
-        curdoc().add_root(root)
+        self.doc.clear()
+        self.doc.add_root(root)
 
     def reset_root(self):
+        return
         print("Resetting")
         self.panel = list(self.ui.values())
         c = column(self.panel)

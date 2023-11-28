@@ -5,25 +5,25 @@ The titantuner is a web interface for tuning the many parameters of quality cont
 
 ## Installation
 
+Titantuner is available on pypi, and can be installed as follows:
 ```bash
-pip3 install -r requirements.txt
+pip3 install titantuner
 ```
 
-## Running titantuner on synthetic data
+To install from source, run the following in the root of this repository:
+```bash
+pip3 install .
+```
+
+## Running titantuner
 
 ```bash
-./serve
+titantuner ./data
 ```
-This starts a webserver locally on your computer, making the titantuner available in the browser. Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT resistant, SCT dual, First Guess), and set the test parameters in the UI. Then click on the update button (below the parameters) to see the map showing the results of the tests.
+This starts a webserver locally on your computer, making the titantuner available in the browser. Some sample
+data from Norwegian Synop stations are provided in the data/ directory.
 
-## Running titantuner on sample data
-
-Some sample data from Norwegian Synop stations are provided in the data/ directory. To use these data, run 
-the following command:
-
-```bash
-./serve data
-```
+Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT resistant, SCT dual, First Guess), and set the test parameters in the UI. Then click on the update button (below the parameters) to see the map showing the results of the tests.
 
 ## Running titantuner on your own data
 
@@ -40,11 +40,17 @@ where lat and lon are in degrees, elev in meters, and value is the measurement. 
 
 ## Using the autotune function (beta version)
 
-Ongoing development. This function aims at finding optimized parameters for quality control methods. When running the autotune function as it is, three parameters are optimized for the buddy check run on temperature observations. These optimized parameters are the search radius, the minimum number of buddies a station can have, and the variance threshold for flagging the station.
+Ongoing development. This function aims at finding optimized parameters for quality control methods. When
+running the autotune function as it is, three parameters are optimized for the buddy check run on temperature
+observations. These optimized parameters are the search radius, the minimum number of buddies a station can
+have, and the variance threshold for flagging the station.
+
 ```bash
-./autotune/autotune.py obs_ta_20230924T12Z.txt
+./titantuner/autotune.py obs_ta_20230924T12Z.txt
 ```
+
 With obs_ta_20230924T12Z.txt containing 5 columns of data (temperature values) following this format:
+
 ```
 lat;lon;elev;value;prid;dqc
 61.1697;10.4107;205.0;13.70;5;0
