@@ -4,7 +4,7 @@ import sys
 import numpy as np
 
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 __all__ = []
 for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
     if module_name != "__main__":
