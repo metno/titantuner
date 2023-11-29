@@ -33,9 +33,9 @@ def run(directory, port):
 
 def application(doc, directory):
     if directory is None:
-        datasets = titantuner.dataset.load_default()
+        datasets = titantuner.source.load_default()
     else:
-        datasets = titantuner.dataset.load(directory)
+        datasets = titantuner.source.titan_output.load(directory)
     application = titantuner.app.App(datasets, doc)
 
 if __name__ == "__main__":

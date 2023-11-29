@@ -30,8 +30,8 @@ class App():
         ui = dict()
         # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
 
-        #dropdown = RadioButtonGroup(labels=[dataset["name"] for dataset in self.datasets], active=self.dataset_index)
-        dropdown = Select(title="Dataset", options=[("%d" % i, dataset["name"]) for i, dataset in
+        #dropdown = RadioButtonGroup(labels=[dataset.name for dataset in self.datasets], active=self.dataset_index)
+        dropdown = Select(title="Dataset", options=[("%d" % i, dataset.name) for i, dataset in
             enumerate(self.datasets)], value=str(self.dataset_index))
         dropdown.on_change("value", self.choose_dataset_handler)
         ui["dataset"] = dropdown
@@ -722,11 +722,11 @@ class App():
         # names = [dataset["name"] for dataset in self.datasets]
         # index = names.index(name)
         self.dataset_index = index
-        self.lats = self.datasets[index]["lats"]
-        self.lons = self.datasets[index]["lons"]
-        self.elevs = self.datasets[index]["elevs"]
-        self.values = self.datasets[index]["values"]
-        self.variable = self.datasets[index]["variable"]
+        self.lats = self.datasets[index].lats
+        self.lons = self.datasets[index].lons
+        self.elevs = self.datasets[index].elevs
+        self.values = self.datasets[index].values
+        self.variable = self.datasets[index].variable
         # print("variable:",self.variable)
         if self.variable == "ta":
             self.units = "C"

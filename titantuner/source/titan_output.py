@@ -2,6 +2,9 @@ import os
 import sys
 import numpy as np
 
+import titantuner
+
+"""This module contains functions to load data from standardized Titan output files"""
 
 def load(directory: str) -> list:
     """Loads data from a specified directory and returns a list of datasets"""
@@ -31,7 +34,7 @@ def load(directory: str) -> list:
             variable = 'rr'
         print(f"Opening {filename}. Variable {variable}.")
         name = os.path.basename(filename)
-        dataset = Dataset(name, lats, lons, elevs, values, None, variable)
+        dataset = titantuner.Dataset(name, lats, lons, elevs, values, None, variable)
         datasets += [dataset]
     return datasets
 
