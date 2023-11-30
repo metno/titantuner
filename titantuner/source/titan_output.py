@@ -34,7 +34,7 @@ def load(directory: str) -> list:
             variable = 'rr'
         print(f"Opening {filename}. Variable {variable}.")
         name = os.path.basename(filename)
-        dataset = titantuner.Dataset(name, lats, lons, elevs, values, None, variable)
+        dataset = titantuner.dataset.Dataset(name, lats, lons, elevs, values, None, variable)
         datasets += [dataset]
     return datasets
 

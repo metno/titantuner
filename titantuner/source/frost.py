@@ -1,7 +1,9 @@
+import titantuner
+
+
 """This module reads observations from frost"""
 
-
-def get(frost_client_id: str, variable: str, unixtime: int) -> titantuner.Dataset:
+def get(frost_client_id: str, variable: str, unixtime: int) -> titantuner.dataset.Dataset:
     """Returns a dataset with observations for the given variable and time"""
     raise NotImplementedError()
 
