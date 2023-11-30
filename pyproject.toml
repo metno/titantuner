@@ -19,6 +19,7 @@ dependencies = [
     "bokeh<3",
     "matplotlib",
     "numpy",
+    "requests",
     "scipy",
     "titanlib>=0.3.3",
 ]

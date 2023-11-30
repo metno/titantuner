@@ -3,28 +3,32 @@ import sys
 import numpy as np
 
 import titantuner
+from . import Source
 
-"""This module contains functions to load data from standardized Titan output files"""
 
-def load(directory: str) -> list:
-    """Loads data from a specified directory and returns a list of datasets"""
-    datasets = list()
-    if os.path.exists(directory):
-        pass
-    else:
-        print("Could not find data directory '%s'" % directory)
-        sys.exit(1)
-    filenames = os.listdir(directory)
-    filenames.sort()
-    if len(filenames) > 100:
-        print("Too many data files (expect max 100 files)")
-        sys.exit(1)
+"""This class load data from standardized Titan output files"""
+class TitanSource(Source):
+    def __init__(self, directory):
+        if not os.path.exists(directory):
+            print("Could not find data directory '%s'" % directory)
+            raise ValueError()
+        filenames = os.listdir(directory)
+        filenames.sort()
+        self.filenames = filenames
+        self.names = dict()
+        for filename in self.filenames:
+            self.names[filename] = f"{directory}/{filename}"
 
-    for filename in filenames:
-        filename = "%s/%s" % (directory, filename)
-        if not os.path.isfile(filename):
-            continue
-        # lats, lons, elevs, values = read_titan(filename, latrange=[59.3, 60.1], lonrange=[10, 11.5])
+    @property
+    def keys(self) -> list:
+        return list(self.names.keys())
+
+    @property
+    def key_label(self) -> str:
+        return "Dataset"
+
+    def load(self, key: str) -> titantuner.dataset.Dataset:
+        filename = self.names[key]
         lats, lons, elevs, values = parse_titan_file(filename)
 
         # Figure out what variable this dataset contains
@@ -35,9 +39,7 @@ def load(directory: str) -> list:
         print(f"Opening {filename}. Variable {variable}.")
         name = os.path.basename(filename)
         dataset = titantuner.dataset.Dataset(name, lats, lons, elevs, values, None, variable)
-        datasets += [dataset]
-    return datasets
-
+        return dataset
 
 def parse_titan_file(filename, latrange=None, lonrange=None):
     """ Parses files produced by titan.R """
@@ -82,4 +84,8 @@ def parse_titan_file(filename, latrange=None, lonrange=None):
             except Exception as e:
                 print(e)
     return np.array(lats), np.array(lons), np.array(elevs), np.array(values)
+
+def get_default_data_dir() -> str:
+    curr_dir = os.path.dirname(__file__)
+    return curr_dir + "/data"
 

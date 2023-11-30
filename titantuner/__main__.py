@@ -6,18 +6,22 @@ from bokeh.server.server import Server
 
 
 import titantuner
+import titantuner.source
+import titantuner.source.titan
+import titantuner.source.frost
 
 
 def main():
     parser = argparse.ArgumentParser(description='Launches a titantuner server')
     parser.add_argument('-d', help='Directory with data', dest="directory")
     parser.add_argument('-p', type=int, default=8081, dest="port")
+    parser.add_argument('--frostid', help="Load data from frost, using this ID")
 
     args = parser.parse_args()
     run(**vars(args))
 
-def run(directory, port):
-    app_handle = lambda doc: application(doc, directory)
+def run(directory, port, frostid):
+    app_handle = lambda doc: application(doc, directory, frostid)
     server = Server(
             app_handle,  # list of Bokeh applications
             port=port,
@@ -31,12 +35,14 @@ def run(directory, port):
     server.io_loop.start()
     # titantuner.run.main()
 
-def application(doc, directory):
-    if directory is None:
-        datasets = titantuner.source.load_default()
+def application(doc, directory, frostid=None):
+    if frostid is not None:
+        source = titantuner.source.frost.FrostSource(frostid)
+    elif directory is None:
+        source = titantuner.source.titan.TitanSource(titantuner.source.titan.get_default_data_dir())
     else:
-        datasets = titantuner.source.titan_output.load(directory)
-    application = titantuner.app.App(datasets, doc)
+        source = titantuner.source.titan.TitanSource(directory)
+    application = titantuner.app.App(source, doc)
 
 if __name__ == "__main__":
     main()

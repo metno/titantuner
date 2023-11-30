@@ -7,7 +7,7 @@ import copy
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, gridplot
 from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions, BoxZoomTool
-from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown
+from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown, InputWidget
 from bokeh.models.widgets.widget import Widget
 from bokeh.models.renderers import TileRenderer
 from bokeh.palettes import RdYlBu3
@@ -15,27 +15,37 @@ from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
 
+import titantuner
+
 class App():
-    def __init__(self, datasets, doc):
-        self.datasets = datasets
+    def __init__(self, source, doc):
+        self.source = source
         self.doc = doc
 
-        self.set_dataset(0)
         self.ui = None
+        date, hour = titantuner.unixtime_to_date(time.time() - 2 * 3600)
+        self.datetime = date * 100 + hour
+        self.set_dataset(0, self.datetime)
         self.setup()
         # self.button_click_callback(None)
 
     def set_ui(self, value):
         self.ui_name = value
         ui = dict()
-        # dropdown = Dropdown(label="Choose test", button_type="warning", menu=[("Sct", "sct"), ("Isolation", "isolation")])
 
-        #dropdown = RadioButtonGroup(labels=[dataset.name for dataset in self.datasets], active=self.dataset_index)
-        dropdown = Select(title="Dataset", options=[("%d" % i, dataset.name) for i, dataset in
-            enumerate(self.datasets)], value=str(self.dataset_index))
+        # Choose dataset/variable
+        dropdown = Select(title=self.source.key_label, options=[("%d" % i, name) for i, name in
+            enumerate(self.source.keys)], value=str(self.dataset_index))
         dropdown.on_change("value", self.choose_dataset_handler)
         ui["dataset"] = dropdown
 
+        # Choose datetime
+        if self.source.requires_time:
+            datetime = TextInput(title="Datehour (YYYYMMDDHH in UTC)", value=str(self.datetime))
+            datetime.on_change("value", self.choose_datetime_handler)
+            ui["datetime"] = datetime
+
+        # Choose the titanlib test
         dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event","SCTres","SCTdual","FirstGuess"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
@@ -244,7 +254,13 @@ class App():
         curdoc().add_root(root)
 
     def choose_dataset_handler(self, attr, old, new):
-        self.set_dataset(new)
+        self.set_dataset(int(new), self.datetime)
+        self.set_ui(self.ui_name)
+
+    def choose_datetime_handler(self, attr, old, new):
+        new = int(new)
+        self.datetime = new
+        self.set_dataset(self.dataset_index, new)
         self.set_ui(self.ui_name)
 
     def choose_background_handler(self, attr, old, new):
@@ -716,24 +732,30 @@ class App():
 
         self.old_flags = copy.deepcopy(flags)
 
-    def set_dataset(self, index):
+    def set_dataset(self, index: int, datetime: int):
+        unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
+        keys = [self.source.keys[index]]
+        if self.source.requires_time:
+            keys += [unixtime]
+        self.dataset = self.source.load(*keys)
         self.old_flags = None
         index = int(index)
         # names = [dataset["name"] for dataset in self.datasets]
         # index = names.index(name)
         self.dataset_index = index
-        self.lats = self.datasets[index].lats
-        self.lons = self.datasets[index].lons
-        self.elevs = self.datasets[index].elevs
-        self.values = self.datasets[index].values
-        self.variable = self.datasets[index].variable
+        self.lats = self.dataset.lats
+        self.lons = self.dataset.lons
+        self.elevs = self.dataset.elevs
+        self.values = self.dataset.values
+        self.variable = self.dataset.variable
         # print("variable:",self.variable)
         if self.variable == "ta":
             self.units = "C"
         elif self.variable == "rr":
             self.units = "mm/h"
         else:
-            raise NotImplementedError
+            self.units = "C"
+            # raise NotImplementedError
 
     def set_background(self, value):
         tile_provider = get_provider(value)
