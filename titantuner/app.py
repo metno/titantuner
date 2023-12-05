@@ -51,8 +51,18 @@ class App():
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
-        latrange = [np.floor(np.min(self.lats)), np.ceil(np.max(self.lats))]
-        lonrange = [np.floor(np.min(self.lons)), np.ceil(np.max(self.lons))]
+
+        # Set the viewing domain based on the available stations
+        if len(self.lats) == 0:
+            latrange = [0, 10]
+            lonrange = [0, 10]
+        elif len(self.lats) == 1:
+            latrange = [np.floor(np.min(self.lats)) - 1, np.ceil(np.max(self.lats)) + 1]
+            lonrange = [np.floor(np.min(self.lons)) - 1, np.ceil(np.max(self.lons)) + 1]
+        else:
+            latrange = [np.floor(np.min(self.lats)), np.ceil(np.max(self.lats))]
+            lonrange = [np.floor(np.min(self.lons)), np.ceil(np.max(self.lons))]
+
         ui["latrange"] = RangeSlider(start=latrange[0], end=latrange[1], value=latrange, step=0.1, title="Latitude range")
         ui["lonrange"] = RangeSlider(start=lonrange[0], end=lonrange[1], value=lonrange, step=0.1, title="Longitude range")
 
@@ -276,16 +286,22 @@ class App():
         s_time = time.time()
 
         frac = self.ui["frac"].value
-        if frac == 100:
-            Is = np.array(range(len(self.lats)))
+        if len(self.lats) == 0:
+            Is = []
         else:
-            np.random.seed(0)
-            Is = np.random.randint(0, len(self.lats), int(frac / 100 * len(self.lats)))
+            if frac == 100:
+                Is = np.array(range(len(self.lats)))
+            else:
+                np.random.seed(0)
+                Is = np.random.randint(0, len(self.lats), int(frac / 100 * len(self.lats)))
 
         # if self.latrange is not None and self.lonrange is not None:
 
         Is0 = np.where((self.lats > self.ui["latrange"].value[0]) & (self.lats < self.ui["latrange"].value[1]) & (self.lons > self.ui["lonrange"].value[0]) & (self.lons < self.ui["lonrange"].value[1]))[0]
         Is = np.intersect1d(Is, Is0)
+
+        if len(Is) == 0:
+            return
 
         self.last_latrange = self.ui["latrange"].value
         self.last_lonrange = self.ui["lonrange"].value
@@ -735,14 +751,23 @@ class App():
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
         keys = [self.source.keys[index]]
+        index = int(index)
+        self.dataset_index = index
         if self.source.requires_time:
             keys += [unixtime]
-        self.dataset = self.source.load(*keys)
+
+        """ What to do if a dataset cannot be loaded? E.g. if it has corrupt data
+
+        Here we just create an empty dataset. Another option would be to remove the dataset from the
+        list of available datasets.
+        """
+        try:
+            self.dataset = self.source.load(*keys)
+        except titantuner.InvalidDatasetException as e:
+            self.dataset = titantuner.dataset.Dataset("Invalid", [], [], [], [], 0, "")
+            print(e)
+
         self.old_flags = None
-        index = int(index)
-        # names = [dataset["name"] for dataset in self.datasets]
-        # index = names.index(name)
-        self.dataset_index = index
         self.lats = self.dataset.lats
         self.lons = self.dataset.lons
         self.elevs = self.dataset.elevs

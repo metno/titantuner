@@ -29,7 +29,10 @@ class TitanSource(Source):
 
     def load(self, key: str) -> titantuner.dataset.Dataset:
         filename = self.names[key]
-        lats, lons, elevs, values = parse_titan_file(filename)
+        try:
+            lats, lons, elevs, values = parse_titan_file(filename)
+        except Exception as e:
+            raise titantuner.InvalidDatasetException()
 
         # Figure out what variable this dataset contains
         if filename.find('_ta_') >= 0:

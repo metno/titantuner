@@ -65,6 +65,9 @@ def unixtime_to_date(unixtime):
     hour = dt.hour
     return date, hour
 
+class InvalidDatasetException(Exception):
+    pass
+
 
 def main():
     import titantuner.__main__
