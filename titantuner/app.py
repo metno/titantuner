@@ -46,7 +46,7 @@ class App():
             ui["datetime"] = datetime
 
         # Choose the titanlib test
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event","SCTres","SCTdual","FirstGuess"], active=self.uiname2id(value))
+        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event","SCTres","SCTdual","FirstGuess","qcFile"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
 
@@ -171,8 +171,29 @@ class App():
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
         # Buddy-event check, end
 
+        # show original flags if present
+        elif value == "qcfile":
+            if len(self.qc_dico.keys())>=1:
+                default_qc_column_name = list(self.qc_dico)[0]
+                dropdown = Select(title="Column for the quality flag",
+                            #options=[("%d" % i, name) for i, name in enumerate(self.qc_dico.keys())]
+                            options=[(name, name) for i, name in enumerate(self.qc_dico.keys())],
+                            value=default_qc_column_name
+                            )
+                self.set_qc_column_name(default_qc_column_name)
+                dropdown.on_change("value", self.choose_qc_column_name)
+                ui["qcfile"] = dropdown
+            else:
+                dropdown = Select(title="Column for the quality flag",
+                            options=[("", "")],
+                            value=""
+                            )
+                ui["qcfile"] = dropdown
+                print("WARNING No precomputed flag, must have a column containing qc in its name!")
+        # Original flag, end
+
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
-        ui["stations"] = TextInput(value="None", title="Stations (removed [%])")
+        ui["stations"] = TextInput(value="None", title="Stations removed ([%])")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
         # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
@@ -182,7 +203,7 @@ class App():
         dropdown.on_change("value", self.choose_background_handler)
         ui["background"] = dropdown
 
-        button = Button(background="orange", label="Update")
+        button = Button(background="#088A08", label="Update")
         button.on_click(self.button_click_callback)
         ui["button"] = button
 
@@ -222,6 +243,7 @@ class App():
         # self.dh = h.data_source
 
         self.set_ui("sct")
+        #self.set_ui("qcfile")
         # self.set_ui("isolation")
 
         self.ds1 = r1.data_source
@@ -263,9 +285,13 @@ class App():
         self.set_dataset(self.dataset_index, new)
         self.set_ui(self.ui_name)
 
+    def choose_qc_column_name(self, attr, old, new):
+        print("debug choose_qc_colunn_name")
+        print(new)
+        self.set_qc_column_name(new)
+
     def choose_background_handler(self, attr, old, new):
         self.set_background(new)
-        # self.set_ui(self.ui_name)
 
     def choose_test_handler(self, new):
         name = self.id2uiname(new)
@@ -633,7 +659,6 @@ class App():
                 elif BoxCox > 0:
                   self.values[Is] = pow(1 + BoxCox * self.values[Is], 1 / BoxCox)
 
-
             sct = np.array(sct)
 
             texts = []
@@ -654,6 +679,18 @@ class App():
                 self.dt1.data = {'y':[], 'x':[], 'text':[]}
             else:
                 self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+                
+        elif self.ui_type == "qcfile":
+            obs_to_check = np.ones(len(Is))
+            debug=False
+            qc_column_name = self.qc_column_name
+            qc_dico = self.qc_dico
+            flags = qc_dico[qc_column_name]
+            texts = []
+            for t in range(len(Is)):
+                curr = ["%d" % flags[Is[t]]]
+                texts += ['\n'.join(curr)]
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
         #----------------------------------------------------------------------
         elif self.ui_type == "isolation":
@@ -677,7 +714,8 @@ class App():
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
 
-        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" and self.ui_type != "sctdual":
+        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" and\
+            self.ui_type != "sctdual" and self.ui_type != "qcfile" :
             texts = []
             for t in range(len(Is)):
                 curr = []
@@ -693,12 +731,23 @@ class App():
         self.ui["time"].value = "%f" % (e_time- s_time)
         flags = np.array(flags)
 
-        for t in range(len(flags)):
-          if flags[t] != 0 and flags[t] != 1:
-              flags[t] = 0
+        if self.ui_type != "qcfile":
+            for t in range(len(flags)):
+                if flags[t] != 0 and flags[t] != 1:
+                    flags[t] = 0 # good
+        else:
+            # pther types of flags
+            # test code different from 0 used when the test catchs bad data
+            for t in range(len(flags)):
+                if flags[t] != 0 and flags[t] != 1:
+                    flags[t] = 1
 
+        # good flags
         I0 = np.where(flags == 0)[0]
+        # bad flags
         I1 = np.where(flags == 1)[0]
+        print("length flag 0", len(I0))
+        print("length flag 1", len(I1))
 
         y0, x0 = np.histogram(self.values[Is[I0]], bins=self.edges)
         if self.old_flags is not None and (flags.shape != self.old_flags.shape):
@@ -717,7 +766,7 @@ class App():
             self.ds2change.data = {'y':yy[Is[I1change]], 'x':xx[Is[I1change]]}
 
         self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
-        self.ui["stations"].value = "%d (%.2f %%)" % (len(Is), 100.0 * len(I1) / len(Is))
+        self.ui["stations"].value = "%d / %d (%.2f %%)" % (len(I1), len(Is), 100.0 * len(I1) / len(Is))
 
         # self.dh.data = {'y': yy[Is], 'x': xx[Is]
         # xoi0 = np.linspace(np.min(self.lats), np.max(self.lats), 50)
@@ -729,7 +778,8 @@ class App():
         # self.ds4.data = {'x': self.values[Is[I0]], 'y':  self.elevs[Is[I0]]}
         # self.ds4.data = {'top': y + y0, 'bottom':  0 * y, 'left': self.edges[:-1], 'right': self.edges[1:]}
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
-
+        #print("old flags")
+        #print(flags)
         self.old_flags = copy.deepcopy(flags)
 
     def set_dataset(self, index: int, datetime: int):
@@ -755,7 +805,13 @@ class App():
             self.units = "mm/h"
         else:
             self.units = "C"
+        self.qc_dico = self.dataset.qc_dico
             # raise NotImplementedError
+
+    def set_qc_column_name(self, value):
+        print("Debug set qc_column_name")
+        print(value)
+        self.qc_column_name = value
 
     def set_background(self, value):
         tile_provider = get_provider(value)
@@ -790,6 +846,8 @@ class App():
             return 5
         elif name == "fgt":
             return 6
+        elif name == "qcfile":
+            return 7
 
     def id2uiname(self, id):
         if id == 0:
@@ -806,3 +864,5 @@ class App():
             return "sctdual"
         elif id == 6:
             return "fgt"
+        elif id == 7:
+            return "qcfile"
