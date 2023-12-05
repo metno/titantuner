@@ -19,3 +19,6 @@ class Source:
 
     def load_index(self, index: int) -> titantuner.dataset.Dataset:
         raise NotImplementedError()
+
+from .titan import *
+from .frost import *

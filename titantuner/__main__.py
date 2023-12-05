@@ -13,15 +13,15 @@ import titantuner.source.frost
 
 def main():
     parser = argparse.ArgumentParser(description='Launches a titantuner server')
-    parser.add_argument('-d', help='Directory with data', dest="directory")
+    parser.add_argument('-d', help='Directories or file patterns containing data', dest="directories_or_patterns", nargs='+')
     parser.add_argument('-p', type=int, default=8081, dest="port")
     parser.add_argument('--frostid', help="Load data from frost, using this ID")
 
     args = parser.parse_args()
     run(**vars(args))
 
-def run(directory, port, frostid):
-    app_handle = lambda doc: application(doc, directory, frostid)
+def run(directories_or_patterns, port, frostid):
+    app_handle = lambda doc: application(doc, directories_or_patterns, frostid)
     server = Server(
             app_handle,  # list of Bokeh applications
             port=port,
@@ -35,13 +35,13 @@ def run(directory, port, frostid):
     server.io_loop.start()
     # titantuner.run.main()
 
-def application(doc, directory, frostid=None):
+def application(doc, directories_or_patterns, frostid=None):
     if frostid is not None:
-        source = titantuner.source.frost.FrostSource(frostid)
-    elif directory is None:
-        source = titantuner.source.titan.TitanSource(titantuner.source.titan.get_default_data_dir())
+        source = titantuner.source.FrostSource(frostid)
+    elif directories_or_patterns is None:
+        source = titantuner.source.TitanSource([titantuner.source.TitanSource.get_default_data_dir()])
     else:
-        source = titantuner.source.titan.TitanSource(directory)
+        source = titantuner.source.TitanSource(directories_or_patterns)
     application = titantuner.app.App(source, doc)
 
 if __name__ == "__main__":
