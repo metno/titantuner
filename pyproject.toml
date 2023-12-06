@@ -36,4 +36,4 @@ include = ["titantuner"]
 version = {attr = "titantuner.VERSION"}
 
 [tool.setuptools.package-data]
-titantuner = ["data/*.txt" "config/*.yml"]
+titantuner = ["data/*.txt", "config/*.yml"]
