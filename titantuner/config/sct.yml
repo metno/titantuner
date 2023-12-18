@@ -1,0 +1,80 @@
+name: sct
+description: "Spatial consistency check"
+extra_outputs:
+  - name: sct
+    description: "The deviation of the observation from the background"
+args:
+  - name: num_min
+    description: "Min number of observations needed to run test"
+    type: int
+    min: 2
+    max: 1000
+    default: 100
+    step: 10
+  - name: num_max
+    description: "Max number of observations to use in the test"
+    type: int
+    min: 2
+    max: 1000
+    default: 100
+    step: 10
+  - name: inner_radius
+    description: "Radius for flagging"
+    units: m
+    type: float
+    min: 100
+    max: 100000
+    step: 1000
+  - name: outer_radius
+    description: "Radius for computing OI and background"
+    units: m
+    type: float
+    min: 100
+    max: 100000
+    step: 1000
+  - name: num_iterations
+    description: "Number of iterations to run the SCT for"
+    type: int
+    min: 1
+    max: 10
+    step: 1
+  - name: num_min_prof
+    description: "Minimum number of observations to compute vertical profile"
+    type: int
+    min: 1
+    max: 1000
+    step: 10
+  - name: min_horizontal_scale
+    description: "Minimum horizontal scale used in the OI"
+    type: float
+    units: m
+    min: 1000
+    max: 10000
+    step: 1000
+  - name: vertical_scale
+    description: "Vertical decorrelation scale used in the vertical"
+    type: float
+    units: m
+    min: 100
+    max: 1000
+    step: 100
+  - name: pos
+    description: "Positive deviation allowed"
+    type: float
+    vector: True
+    min: 0
+    max: 10
+    step: 0.1
+  - name: neg
+    description: "Negative deviation allowed"
+    type: float
+    vector: True
+    min: 0
+    max: 10
+    step: 0.1
+  - name: eps2
+    description: "Related to error variance"
+    vector: True
+    min: 0
+    max: 10
+    step: 0.1
