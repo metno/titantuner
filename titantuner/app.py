@@ -117,17 +117,17 @@ class App():
         # SCT dual begin
         elif value == "sctdual":
             ui["nmin"] = Slider(start=5, end=1000, value=5, step=10, title="Minimum obs in box")
-            ui["nmax"] = Slider(start=100, end=3000, value=100, step=100, title="Maximum obs in box")
+            ui["nmax"] = Slider(start=10, end=3000, value=100, step=10, title="Maximum obs in box")
             ui["inner_radius"] = Slider(start=100, end=100000, value=4000, step=100, title="Inner radius [m]")
             ui["outer_radius"] = Slider(start=100, end=200000, value=10000, step=100, title="Outer radius [m]")
             ui["niterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             ui["t_event"] = Slider(start=0, end=5, value=0.1, step=0.1, title="Event threshold")
-            ui["t_condition"] = RadioButtonGroup(labels=["Eq", "Gt", "Geq", "Lt", "Leq"], active=0)
-            ui["t_test"] = Slider(start=0, end=1, value=0.5, step=0.1, title="Test threshold")
-            ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
-            ui["dhmax"] = Slider(start=0, end=20000, value=10000, step=1000, title="Max horiz OI distance [m]")
-            ui["kth"] = Slider(start=1, end=200, value=10, step=1, title="use the k-th closest obs for horiz OI distance")
-            ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertical OI distance [m]")
+            ui["t_condition"] = RadioButtonGroup(labels=["Eq", "Gt", "Geq", "Lt", "Leq"], active=1)
+            ui["t_test"] = Slider(start=0, end=1, value=0.1, step=0.1, title="Test threshold")
+            ui["dhmin"] = Slider(start=0, end=20000, value=5000, step=1000, title="Min horiz OI distance [m]")
+            ui["dhmax"] = Slider(start=0, end=20000, value=50000, step=1000, title="Max horiz OI distance [m]")
+            ui["kth"] = Slider(start=1, end=200, value=3, step=1, title="use the k-th closest obs for horiz OI distance")
+            ui["dz"] = Slider(start=100, end=1000, value=10000, step=100, title="Vertical OI distance [m]")
             ui["labels"] = CheckboxButtonGroup(labels=["Obs", "Elev"], active=[0])
         # SCT dual end
 
