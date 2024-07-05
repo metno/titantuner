@@ -18,7 +18,7 @@ classifiers = [
 dependencies = [
     "bokeh<3",
     "matplotlib",
-    "numpy",
+    "numpy<2",
     "requests",
     "scipy",
     "titanlib>=0.3.3",
