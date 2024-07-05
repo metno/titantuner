@@ -17,6 +17,16 @@ import bokeh.application
 
 import titantuner
 
+def apply_BoxCox(values, BoxCox):
+    values_to_test = copy.deepcopy(values)
+    if BoxCox == 0:
+        ix0 = np.where(values == 0)[0]
+        values_to_test[ix0] = 0.0001
+        values_to_test = np.log(values_to_test)
+    elif BoxCox > 0:
+        values_to_test = (pow(values, BoxCox) - 1) / BoxCox
+    return values_to_test
+
 class App():
     def __init__(self, source, doc):
         self.source = source
@@ -168,6 +178,8 @@ class App():
             ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs"], active=[0])
         # Buddy check, end
 
         # Buddy-event check, begin
@@ -676,11 +688,36 @@ class App():
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
-            flags = titanlib.buddy_check(points, self.values[Is],
+            values_to_test = copy.deepcopy(self.values)
+            if self.variable == "rr":
+                BoxCox = self.ui["BoxCox"].value
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+               
+            flags = titanlib.buddy_check(points, values_to_test[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
+            
+            texts = []
+            for t in range(len(Is)):
+                curr = []
+
+                if 0 in self.ui["labels"].active:
+                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
+                        curr += ["%.1f" % self.values[Is[t]]]
+                    else:
+                        curr += ["%d" % self.values[Is[t]]]
+                if 1 in self.ui["labels"].active:
+                    curr += ["%.1f" % values_to_test[Is[t]]]
+
+                texts += ['\n'.join(curr)]
+            if len(self.ui["labels"].active) == 0:
+                self.dt1.data = {'y':[], 'x':[], 'text':[]}
+            else:
+                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+
+
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
             flags = titanlib.buddy_event_check(points, self.values[Is],
@@ -693,7 +730,8 @@ class App():
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
 
-        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" and self.ui_type != "sctdual":
+        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" \
+            and self.ui_type != "sctdual" and self.ui_type != "buddy":
             texts = []
             for t in range(len(Is)):
                 curr = []
