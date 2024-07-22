@@ -27,6 +27,12 @@ def apply_BoxCox(values, BoxCox):
         values_to_test = (pow(values, BoxCox) - 1) / BoxCox
     return values_to_test
 
+def displayed_value(variable, value):
+    if variable == "rr" and value < 1 and value > 0:
+        return f'{value:.1f}'
+    else:
+        return f'{value:.0f}'
+
 class App():
     def __init__(self, source, doc):
         self.source = source
@@ -38,6 +44,28 @@ class App():
         self.set_dataset(0, self.datetime)
         self.setup()
         # self.button_click_callback(None)
+
+    def initialize_val_minmax(self, delta_key, Is):
+        values_min = self.values[Is] - self.ui[delta_key].value * np.ones(len(Is))
+        values_max = self.values[Is] + self.ui[delta_key].value * np.ones(len(Is))
+        return values_min, values_max
+
+    def calculate_val_minmax(self, delta_key, fact_key, Is, BoxCox):
+        values_min = self.values[Is] - self.ui[delta_key].value * np.ones(len(Is))
+        values_max = self.values[Is] + self.ui[delta_key].value * np.ones(len(Is))
+        values_min[np.where(values_min < 0)[0]] = 0
+        values_max[np.where(values_max < 0)[0]] = 0
+        values_min_alt = self.values[Is] - self.ui[fact_key].value * np.ones(len(Is)) * self.values[Is]
+        values_max_alt = self.values[Is] + self.ui[fact_key].value * np.ones(len(Is)) * self.values[Is]
+        values_min_alt[np.where(values_min_alt < 0)[0]] = 0
+        values_max_alt[np.where(values_max_alt < 0)[0]] = 0
+        ix_min = np.where(values_min_alt < values_min)[0]
+        ix_max = np.where(values_max_alt > values_max)[0]
+        values_min[ix_min] = values_min_alt[ix_min]
+        values_max[ix_max] = values_max_alt[ix_max]
+        values_min[ix_min] = apply_BoxCox(values_min[ix_min], BoxCox)
+        values_max[ix_max] = apply_BoxCox(values_max[ix_max], BoxCox)
+        return values_min, values_max
 
     def set_ui(self, value):
         self.ui_name = value
@@ -119,8 +147,8 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "SCT", "Elev"], active=[0])
-            ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
+            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs", "SCT", "Elev"], active=[0])
+            ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
             ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
         # SCT resistant end
 
@@ -158,8 +186,8 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "SCT", "Elev"], active=[0])
-            ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
+            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs", "SCT", "Elev"], active=[0])
+            ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
             ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
         # FGT end
 
@@ -178,7 +206,7 @@ class App():
             ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
             ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs"], active=[0])
         # Buddy check, end
 
@@ -351,10 +379,7 @@ class App():
             for t in range(len(Is)):
                 curr = []
                 if 0 in self.ui["labels"].active:
-                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.2f" % self.values[Is[t]]]
-                    else:
-                        curr += ["%d" % self.values[Is[t]]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 1 in self.ui["labels"].active:
                     curr += ["%.1f" % sct[t]]
                 if 2 in self.ui["labels"].active:
@@ -367,19 +392,7 @@ class App():
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
-            if self.ui["variable"].active == 0:
-                self.variable = "ta"
-            elif  self.ui["variable"].active == 1:
-                self.variable = "rr"
-
-            # print("variable:",self.variable)
-
-            if self.variable == "ta":
-                self.units = "C"
-            elif self.variable == "rr":
-                self.units = "mm/h"
-            else:
-                raise NotImplementedError
+            print("DEBUG expected variable is", self.variable)
 
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
@@ -395,52 +408,17 @@ class App():
             kth = self.ui["kth"].value
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
-            BoxCox = self.ui["BoxCox"].value
-            values_mina = self.values[Is] - self.ui["a_delta"].value * np.ones(len(Is))
-            values_maxa = self.values[Is] + self.ui["a_delta"].value * np.ones(len(Is))
-            values_minv = self.values[Is] - self.ui["v_delta"].value * np.ones(len(Is))
-            values_maxv = self.values[Is] + self.ui["v_delta"].value * np.ones(len(Is))
-            
-            if self.variable == "rr":
-                values_mina[np.where(values_mina < 0)[0]] = 0
-                values_mina_alt = self.values[Is] - self.ui["a_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_mina_alt[np.where(values_mina_alt < 0)[0]] = 0
-                ix = np.where(values_mina_alt < values_mina)[0]
-                values_mina[ix] = values_mina_alt[ix]
-                values_maxa[np.where(values_maxa < 0)[0]] = 0
-                values_maxa_alt = self.values[Is] + self.ui["a_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_maxa_alt[np.where(values_maxa_alt < 0)[0]] = 0
-                ix = np.where(values_maxa_alt > values_maxa)[0]
-                values_maxa[ix] = values_maxa_alt[ix]
-                values_minv[np.where(values_minv < 0)[0]] = 0
-                values_minv_alt = self.values[Is] - self.ui["v_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_minv_alt[np.where(values_minv_alt < 0)[0]] = 0
-                ix = np.where(values_minv_alt < values_minv)[0]
-                values_minv[ix] = values_minv_alt[ix]
-                values_maxv[np.where(values_maxv < 0)[0]] = 0
-                values_maxv_alt = self.values[Is] + self.ui["v_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_maxv_alt[np.where(values_maxv_alt < 0)[0]] = 0
-                ix = np.where(values_maxv_alt > values_maxv)[0]
-                values_maxv[ix] = values_maxv_alt[ix]
-                if BoxCox == 0:
-                  ix0 = np.where(self.values[Is] == 0)[0]
-                  values_mina[np.where(values_mina == 0)[0]] = 0.0001
-                  values_maxa[np.where(values_maxa == 0)[0]] = 0.0001
-                  values_minv[np.where(values_minv == 0)[0]] = 0.0001
-                  values_maxv[np.where(values_maxv == 0)[0]] = 0.0001
-                  self.values[Is[ix0]] = 0.0001
-                  values_mina = np.log(values_mina)
-                  values_maxa = np.log(values_maxa)
-                  values_minv = np.log(values_minv)
-                  values_maxv = np.log(values_maxv)
-                  self.values[Is] = np.log(self.values[Is])
-                elif BoxCox > 0:
-                  values_mina = (pow(values_mina, BoxCox) - 1) / BoxCox
-                  values_maxa = (pow(values_maxa, BoxCox) - 1) / BoxCox
-                  values_minv = (pow(values_minv, BoxCox) - 1) / BoxCox
-                  values_maxv = (pow(values_maxv, BoxCox) - 1) / BoxCox
-                  self.values[Is] = (pow(self.values[Is], BoxCox) - 1) / BoxCox
 
+            BoxCox = self.ui["BoxCox"].value
+            values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
+            values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
+
+            values_to_test = copy.deepcopy(self.values)
+            if self.variable == "rr":
+                values_mina, values_maxa = self.calculate_val_minmax("a_delta", "a_fact", Is, BoxCox)
+                values_minv, values_maxv = self.calculate_val_minmax("v_delta", "v_fact", Is, BoxCox)
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+                
             if self.ui["basic"].active == 0:
                 basic=True
             elif self.ui["basic"].active == 1:
@@ -462,7 +440,7 @@ class App():
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct = titanlib.sct_resistant(points, self.values[Is], 
+            flags, sct = titanlib.sct_resistant(points, values_to_test[Is], 
                     obs_to_check, background_values, background_elab,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
@@ -472,14 +450,6 @@ class App():
                     t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     debug, basic )
 
-            if self.variable == "rr":
-                if BoxCox == 0:
-                  self.values[Is] = np.exp(self.values[Is]) 
-                  self.values[Is[ix0]] = 0 
-                elif BoxCox > 0:
-                  self.values[Is] = pow(1 + BoxCox * self.values[Is], 1 / BoxCox)
-
-
             sct = np.array(sct)
 
             texts = []
@@ -487,13 +457,12 @@ class App():
                 curr = []
 
                 if 0 in self.ui["labels"].active:
-                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.1f" % self.values[Is[t]]]
-                    else:
-                        curr += ["%d" % self.values[Is[t]]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 1 in self.ui["labels"].active:
-                    curr += ["%.1f" % sct[t]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 2 in self.ui["labels"].active:
+                    curr += ["%.1f" % sct[t]]
+                if 3 in self.ui["labels"].active:
                     curr += ["%d" % self.elevs[Is[t]]]
                 texts += ['\n'.join(curr)]
             if len(self.ui["labels"].active) == 0:
@@ -543,10 +512,7 @@ class App():
                 curr = []
 
                 if 0 in self.ui["labels"].active:
-                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.1f" % self.values[Is[t]]]
-                    else:
-                        curr += ["%d" % self.values[Is[t]]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 1 in self.ui["labels"].active:
                     curr += ["%d" % self.elevs[Is[t]]]
                 texts += ['\n'.join(curr)]
@@ -557,19 +523,7 @@ class App():
 
         #----------------------------------------------------------------------
         if self.ui_type == "fgt":
-            if self.ui["variable"].active == 0:
-                self.variable = "ta"
-            elif  self.ui["variable"].active == 1:
-                self.variable = "rr"
-
-            # print("variable:",self.variable)
-
-            if self.variable == "ta":
-                self.units = "C"
-            elif self.variable == "rr":
-                self.units = "mm/h"
-            else:
-                raise NotImplementedError
+            print("DEBUG expected variable is", self.variable)
 
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
@@ -581,50 +535,14 @@ class App():
             tneg = self.ui["tneg"].value
             dzmin = self.ui["dzmin"].value
             BoxCox = self.ui["BoxCox"].value
-            values_mina = self.values[Is] - self.ui["a_delta"].value * np.ones(len(Is))
-            values_maxa = self.values[Is] + self.ui["a_delta"].value * np.ones(len(Is))
-            values_minv = self.values[Is] - self.ui["v_delta"].value * np.ones(len(Is))
-            values_maxv = self.values[Is] + self.ui["v_delta"].value * np.ones(len(Is))
-            
+            values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
+            values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
+
+            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
-                values_mina[np.where(values_mina < 0)[0]] = 0
-                values_mina_alt = self.values[Is] - self.ui["a_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_mina_alt[np.where(values_mina_alt < 0)[0]] = 0
-                ix = np.where(values_mina_alt < values_mina)[0]
-                values_mina[ix] = values_mina_alt[ix]
-                values_maxa[np.where(values_maxa < 0)[0]] = 0
-                values_maxa_alt = self.values[Is] + self.ui["a_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_maxa_alt[np.where(values_maxa_alt < 0)[0]] = 0
-                ix = np.where(values_maxa_alt > values_maxa)[0]
-                values_maxa[ix] = values_maxa_alt[ix]
-                values_minv[np.where(values_minv < 0)[0]] = 0
-                values_minv_alt = self.values[Is] - self.ui["v_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_minv_alt[np.where(values_minv_alt < 0)[0]] = 0
-                ix = np.where(values_minv_alt < values_minv)[0]
-                values_minv[ix] = values_minv_alt[ix]
-                values_maxv[np.where(values_maxv < 0)[0]] = 0
-                values_maxv_alt = self.values[Is] + self.ui["v_fact"].value * np.ones(len(Is)) * self.values[Is]
-                values_maxv_alt[np.where(values_maxv_alt < 0)[0]] = 0
-                ix = np.where(values_maxv_alt > values_maxv)[0]
-                values_maxv[ix] = values_maxv_alt[ix]
-                if BoxCox == 0:
-                  ix0 = np.where(self.values[Is] == 0)[0]
-                  values_mina[np.where(values_mina == 0)[0]] = 0.0001
-                  values_maxa[np.where(values_maxa == 0)[0]] = 0.0001
-                  values_minv[np.where(values_minv == 0)[0]] = 0.0001
-                  values_maxv[np.where(values_maxv == 0)[0]] = 0.0001
-                  self.values[Is[ix0]] = 0.0001
-                  values_mina = np.log(values_mina)
-                  values_maxa = np.log(values_maxa)
-                  values_minv = np.log(values_minv)
-                  values_maxv = np.log(values_maxv)
-                  self.values[Is] = np.log(self.values[Is])
-                elif BoxCox > 0:
-                  values_mina = (pow(values_mina, BoxCox) - 1) / BoxCox
-                  values_maxa = (pow(values_maxa, BoxCox) - 1) / BoxCox
-                  values_minv = (pow(values_minv, BoxCox) - 1) / BoxCox
-                  values_maxv = (pow(values_maxv, BoxCox) - 1) / BoxCox
-                  self.values[Is] = (pow(self.values[Is], BoxCox) - 1) / BoxCox
+                values_mina, values_maxa = self.calculate_val_minmax("a_delta", "a_fact", Is, BoxCox)
+                values_minv, values_maxv = self.calculate_val_minmax("v_delta", "v_fact", Is, BoxCox)
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -645,22 +563,14 @@ class App():
             if self.ui["background_elab"].active == 3:
                 background_elab=titanlib.MedianOuterCircle
  
-            flags, sct = titanlib.fgt(points, self.values[Is], 
+            flags, sct = titanlib.fgt(points, values_to_test[Is], 
                     obs_to_check, background_values, 
                     background_uncertainties, background_elab,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof, dzmin, 
                     values_mina, values_maxa, values_minv, values_maxv,
                     tpos * np.ones(len(Is)), tneg * np.ones(len(Is)),
-                    debug, basic )
-
-            if self.variable == "rr":
-                if BoxCox == 0:
-                  self.values[Is] = np.exp(self.values[Is]) 
-                  self.values[Is[ix0]] = 0 
-                elif BoxCox > 0:
-                  self.values[Is] = pow(1 + BoxCox * self.values[Is], 1 / BoxCox)
-
+                    debug, basic)
 
             sct = np.array(sct)
 
@@ -669,13 +579,12 @@ class App():
                 curr = []
 
                 if 0 in self.ui["labels"].active:
-                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.1f" % self.values[Is[t]]]
-                    else:
-                        curr += ["%d" % self.values[Is[t]]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 1 in self.ui["labels"].active:
-                    curr += ["%.1f" % sct[t]]
+                    curr += [displayed_value(self.variable, values_to_test[Is[t]])]
                 if 2 in self.ui["labels"].active:
+                    curr += ["%.1f" % sct[t]]
+                if 3 in self.ui["labels"].active:
                     curr += ["%d" % self.elevs[Is[t]]]
                 texts += ['\n'.join(curr)]
             if len(self.ui["labels"].active) == 0:
@@ -704,12 +613,9 @@ class App():
                 curr = []
 
                 if 0 in self.ui["labels"].active:
-                    if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                        curr += ["%.1f" % self.values[Is[t]]]
-                    else:
-                        curr += ["%d" % self.values[Is[t]]]
+                    curr += [displayed_value(self.variable, self.values[Is[t]])]
                 if 1 in self.ui["labels"].active:
-                    curr += ["%.1f" % values_to_test[Is[t]]]
+                    curr += [displayed_value(self.variable, values_to_test[Is[t]])]
 
                 texts += ['\n'.join(curr)]
             if len(self.ui["labels"].active) == 0:
@@ -735,10 +641,7 @@ class App():
             texts = []
             for t in range(len(Is)):
                 curr = []
-                if self.variable == "rr" and self.values[Is[t]] < 1 and self.values[Is[t]] > 0:
-                    curr += ["%.1f" % self.values[Is[t]]]
-                else:
-                    curr += ["%d" % self.values[Is[t]]]
+                curr += [displayed_value(self.variable, self.values[Is[t]])]
                 texts += [curr]
             self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
