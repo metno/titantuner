@@ -17,6 +17,8 @@ import bokeh.application
 
 import titantuner
 
+displaid_label_buttons = ["Obs", "BoxCoxObs", "Elev", "SCT"]
+
 def apply_BoxCox(values, BoxCox):
     values_to_test = copy.deepcopy(values)
     if BoxCox == 0:
@@ -50,22 +52,42 @@ class App():
         values_max = self.values[Is] + self.ui[delta_key].value * np.ones(len(Is))
         return values_min, values_max
 
-    def calculate_val_minmax(self, delta_key, fact_key, Is, BoxCox):
-        values_min = self.values[Is] - self.ui[delta_key].value * np.ones(len(Is))
-        values_max = self.values[Is] + self.ui[delta_key].value * np.ones(len(Is))
+    def calculate_val_minmax(self, values_min, values_max, delta_key, fact_key, Is, BoxCox):
         values_min[np.where(values_min < 0)[0]] = 0
-        values_max[np.where(values_max < 0)[0]] = 0
         values_min_alt = self.values[Is] - self.ui[fact_key].value * np.ones(len(Is)) * self.values[Is]
-        values_max_alt = self.values[Is] + self.ui[fact_key].value * np.ones(len(Is)) * self.values[Is]
         values_min_alt[np.where(values_min_alt < 0)[0]] = 0
-        values_max_alt[np.where(values_max_alt < 0)[0]] = 0
         ix_min = np.where(values_min_alt < values_min)[0]
-        ix_max = np.where(values_max_alt > values_max)[0]
         values_min[ix_min] = values_min_alt[ix_min]
+
+        values_max[np.where(values_max < 0)[0]] = 0
+        values_max_alt = self.values[Is] + self.ui[fact_key].value * np.ones(len(Is)) * self.values[Is]
+        values_max_alt[np.where(values_max_alt < 0)[0]] = 0
+        ix_max = np.where(values_max_alt > values_max)[0]
         values_max[ix_max] = values_max_alt[ix_max]
-        values_min[ix_min] = apply_BoxCox(values_min[ix_min], BoxCox)
-        values_max[ix_max] = apply_BoxCox(values_max[ix_max], BoxCox)
+        
+        values_min = apply_BoxCox(values_min, BoxCox)
+        values_max = apply_BoxCox(values_max, BoxCox)
+
         return values_min, values_max
+
+    def add_labels(self, boxcox_values, sct, Is, xx, yy):
+        selected_labels = [self.ui["labels"].labels[i] for i in self.ui["labels"].active]
+        texts = []
+        for t in range(len(Is)):
+            curr = []
+            if "Obs" in selected_labels:
+                curr += [displayed_value(self.variable, self.values[Is[t]])]
+            if "BoxCoxObs" in selected_labels:
+                curr += ["%.1f" % boxcox_values[Is[t]]]
+            if "Elev" in selected_labels:
+                curr += ["%d" % self.elevs[Is[t]]]
+            if "SCT" in selected_labels:
+                curr += ["%.1f" % sct[t]]
+            texts += ['\n'.join(curr)]
+        if len(self.ui["labels"].active) == 0:
+            self.dt1.data = {'y':[], 'x':[], 'text':[]}
+        else:
+            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
     def set_ui(self, value):
         self.ui_name = value
@@ -84,7 +106,7 @@ class App():
             ui["datetime"] = datetime
 
         # Choose the titanlib test
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event","SCTres","SCTdual","FirstGuess"], active=self.uiname2id(value))
+        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event", "SCTres", "SCTdual", "FirstGuess"], active=self.uiname2id(value))
         dropdown.on_click(self.choose_test_handler)
         ui["type"] = dropdown
 
@@ -119,7 +141,8 @@ class App():
             ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="Min elev range to fit profile [m]")
             ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
             ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertical OI distance [m]")
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "SCT", "Elev"], active=[0])
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
 
             #self.r4 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="red")
             #self.r3 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="navy")
@@ -147,9 +170,9 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs", "SCT", "Elev"], active=[0])
             ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # SCT resistant end
 
         # SCT dual begin
@@ -166,7 +189,8 @@ class App():
             ui["dhmax"] = Slider(start=0, end=20000, value=50000, step=1000, title="Max horiz OI distance [m]")
             ui["kth"] = Slider(start=1, end=200, value=3, step=1, title="use the k-th closest obs for horiz OI distance")
             ui["dz"] = Slider(start=100, end=1000, value=10000, step=100, title="Vertical OI distance [m]")
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "Elev"], active=[0])
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # SCT dual end
 
         # FGT begin
@@ -186,15 +210,16 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs", "SCT", "Elev"], active=[0])
             ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
             ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # FGT end
 
         # Isolation test, begin
         elif value == "isolation":
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
+            ui["labels"] = CheckboxButtonGroup(labels=[displaid_label_buttons[0], displaid_label_buttons[2]], active=[0])
         # Isolation test, end
         
         # Buddy check, begin
@@ -207,7 +232,7 @@ class App():
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
-            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "BoxCoxObs"], active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy check, end
 
         # Buddy-event check, begin
@@ -219,6 +244,8 @@ class App():
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
             ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
+            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy-event check, end
 
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
@@ -343,6 +370,7 @@ class App():
         if len(Is) == 0:
             return
 
+        obs_to_check = np.ones(len(Is))
         self.last_latrange = self.ui["latrange"].value
         self.last_lonrange = self.ui["lonrange"].value
 
@@ -365,30 +393,21 @@ class App():
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
 
+            BoxCox = self.ui["BoxCox"].value
+            values_to_test = copy.deepcopy(self.values)
+            if self.variable == "rr":
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct, rep = titanlib.sct(points, self.values[Is], nmin, nmax, inner_radius,
+            flags, sct, rep = titanlib.sct(points, values_to_test[Is], nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
 
             sct = np.array(sct)
-
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-                if 0 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 1 in self.ui["labels"].active:
-                    curr += ["%.1f" % sct[t]]
-                if 2 in self.ui["labels"].active:
-                    curr += ["%d" % self.elevs[Is[t]]]
-                texts += ['\n'.join(curr)]
-            if len(self.ui["labels"].active) == 0:
-                self.dt1.data = {'y':[], 'x':[], 'text':[]}
-            else:
-                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.add_labels(values_to_test, sct, Is, xx, yy)
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
@@ -415,16 +434,15 @@ class App():
 
             values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
-                values_mina, values_maxa = self.calculate_val_minmax("a_delta", "a_fact", Is, BoxCox)
-                values_minv, values_maxv = self.calculate_val_minmax("v_delta", "v_fact", Is, BoxCox)
+                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
+                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
                 values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
-                
+
             if self.ui["basic"].active == 0:
                 basic=True
             elif self.ui["basic"].active == 1:
                 basic=False
 
-            obs_to_check = np.ones(len(Is))
             background_values = np.ones(len(Is))
             debug=False
 
@@ -451,24 +469,7 @@ class App():
                     debug, basic )
 
             sct = np.array(sct)
-
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-
-                if 0 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 1 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 2 in self.ui["labels"].active:
-                    curr += ["%.1f" % sct[t]]
-                if 3 in self.ui["labels"].active:
-                    curr += ["%d" % self.elevs[Is[t]]]
-                texts += ['\n'.join(curr)]
-            if len(self.ui["labels"].active) == 0:
-                self.dt1.data = {'y':[], 'x':[], 'text':[]}
-            else:
-                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.add_labels(values_to_test, sct, Is, xx, yy)
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctdual":
@@ -496,10 +497,13 @@ class App():
             if self.ui["t_condition"].active == 4:
                 t_condition=titanlib.Leq
 
-            obs_to_check = np.ones(len(Is))
             debug=False
+            BoxCox = self.ui["BoxCox"].value
+            values_to_test = copy.deepcopy(self.values)
+            if self.variable == "rr":
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
 
-            flags = titanlib.sct_dual(points, self.values[Is],
+            flags = titanlib.sct_dual(points, values_to_test[Is],
                     obs_to_check, t_event* np.ones(len(Is)), t_condition,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations,
@@ -507,24 +511,10 @@ class App():
                     t_test * np.ones(len(Is)),
                     debug )
 
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-
-                if 0 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 1 in self.ui["labels"].active:
-                    curr += ["%d" % self.elevs[Is[t]]]
-                texts += ['\n'.join(curr)]
-            if len(self.ui["labels"].active) == 0:
-                self.dt1.data = {'y':[], 'x':[], 'text':[]}
-            else:
-                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.add_labels(values_to_test, [], Is, xx, yy)
 
         #----------------------------------------------------------------------
         if self.ui_type == "fgt":
-            print("DEBUG expected variable is", self.variable)
-
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
             inner_radius = self.ui["inner_radius"].value
@@ -537,11 +527,10 @@ class App():
             BoxCox = self.ui["BoxCox"].value
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
-
             values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
-                values_mina, values_maxa = self.calculate_val_minmax("a_delta", "a_fact", Is, BoxCox)
-                values_minv, values_maxv = self.calculate_val_minmax("v_delta", "v_fact", Is, BoxCox)
+                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
+                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
                 values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
 
             if self.ui["basic"].active == 0:
@@ -549,7 +538,6 @@ class App():
             elif self.ui["basic"].active == 1:
                 basic=False
 
-            obs_to_check = np.ones(len(Is))
             background_values = np.ones(len(Is))
             background_uncertainties = np.ones(len(Is))
             debug=False
@@ -573,77 +561,42 @@ class App():
                     debug, basic)
 
             sct = np.array(sct)
-
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-
-                if 0 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 1 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, values_to_test[Is[t]])]
-                if 2 in self.ui["labels"].active:
-                    curr += ["%.1f" % sct[t]]
-                if 3 in self.ui["labels"].active:
-                    curr += ["%d" % self.elevs[Is[t]]]
-                texts += ['\n'.join(curr)]
-            if len(self.ui["labels"].active) == 0:
-                self.dt1.data = {'y':[], 'x':[], 'text':[]}
-            else:
-                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.add_labels(values_to_test, sct, Is, xx, yy)
 
         #----------------------------------------------------------------------
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
+            self.add_labels([], [], Is, xx, yy)
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
             values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
                 BoxCox = self.ui["BoxCox"].value
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
-               
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)              
             flags = titanlib.buddy_check(points, values_to_test[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
-            
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-
-                if 0 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, self.values[Is[t]])]
-                if 1 in self.ui["labels"].active:
-                    curr += [displayed_value(self.variable, values_to_test[Is[t]])]
-
-                texts += ['\n'.join(curr)]
-            if len(self.ui["labels"].active) == 0:
-                self.dt1.data = {'y':[], 'x':[], 'text':[]}
-            else:
-                self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.add_labels(values_to_test, [], Is, xx, yy)
 
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
-            flags = titanlib.buddy_event_check(points, self.values[Is],
+            values_to_test = copy.deepcopy(self.values)
+            if self.variable == "rr":
+                BoxCox = self.ui["BoxCox"].value
+                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+            flags = titanlib.buddy_event_check(points, values_to_test[Is],
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["event_threshold"].value,
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000,
                     self.ui["num_iterations"].value)
+            self.add_labels(values_to_test, [], Is, xx, yy)
         #----------------------------------------------------------------------
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
-
-        if self.ui_type != "sct" and self.ui_type != "sctres" and self.ui_type != "fgt" \
-            and self.ui_type != "sctdual" and self.ui_type != "buddy":
-            texts = []
-            for t in range(len(Is)):
-                curr = []
-                curr += [displayed_value(self.variable, self.values[Is[t]])]
-                texts += [curr]
-            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
 
         e_time = time.time()
