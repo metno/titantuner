@@ -16,7 +16,7 @@ classifiers = [
     'Programming Language :: Python :: 3',
     ]
 dependencies = [
-    "bokeh<3",
+    "bokeh>=3.5",
     "matplotlib",
     "numpy<2",
     "requests",

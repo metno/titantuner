@@ -6,13 +6,13 @@ import copy
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, gridplot
-from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions, BoxZoomTool
+from bokeh.models import Button, Title, Text, Label, TabPanel, ColumnDataSource, GMapOptions, BoxZoomTool, WMTSTileSource
 from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown, InputWidget
 from bokeh.models.widgets.widget import Widget
 from bokeh.models.renderers import TileRenderer
 from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
-from bokeh.tile_providers import get_provider, Vendors
+#from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
 
 import titantuner
@@ -90,6 +90,7 @@ class App():
             self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
 
     def set_ui(self, value):
+        print("DEBUG set_ui", value)
         self.ui_name = value
         ui = dict()
 
@@ -107,11 +108,11 @@ class App():
 
         # Choose the titanlib test
         dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event", "SCTres", "SCTdual", "FirstGuess"], active=self.uiname2id(value))
-        dropdown.on_click(self.choose_test_handler)
+        #dropdown.on_click(self.choose_test_handler)
+        dropdown.on_change("active", self.choose_test_handler)
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
-
         # Set the viewing domain based on the available stations
         if len(self.lats) == 0:
             latrange = [0, 10]
@@ -253,12 +254,14 @@ class App():
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
         # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
-        dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
-            (Vendors.STAMEN_TERRAIN, "Terain"),
-            (Vendors.STAMEN_TONER, "Toner")])
+	#dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
+        #    (Vendors.STAMEN_TERRAIN, "Terain"),
+        #    (Vendors.STAMEN_TONER, "Toner")])
+        #dropdown.on_change("value", self.choose_background_handler)
+        dropdown = Select(title="Map background", options=["STAMEN_TERRAIN", "STAMEN_TONER", "OSM"])
         dropdown.on_change("value", self.choose_background_handler)
         ui["background"] = dropdown
-
+        #don't work: ui["background"] = "OSM" #dropdown
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
         ui["button"] = button
@@ -282,14 +285,18 @@ class App():
         self.p.add_tools(BoxZoomTool(match_aspect=True))
         self.p.title.text_font_size = "25px"
         self.p.title.align = "center"
+        self.p.add_tile("OSM")
 
-        tile_provider = get_provider(Vendors.CARTODBPOSITRON)
-        self.p.add_tile(tile_provider)
+#        tile_provider = get_provider(Vendors.CARTODBPOSITRON)
+#        self.p.add_tile(tile_provider)
 
-        r1 = self.p.circle([], [], fill_color="gray", legend_label="OK", size=20)
-        r2 = self.p.circle([], [], fill_color="red", legend_label="Flagged", size=20)
-        r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
-        r2change = self.p.circle([], [], fill_color="red", line_color="orange", line_width=2, size=20)
+        r1 = self.p.scatter(x=[], y=[], size=20, marker="circle", fill_color="gray", line_color="orange", line_width=2)
+        r2 = self.p.scatter(x=[], y=[], size=20, marker="circle", fill_color="red", legend_label="Flagged")
+        r1change = self.p.scatter(x=[], y=[], marker="circle", fill_color="gray", line_color="orange", line_width=2, size=20)
+        r2change = self.p.scatter(x=[], y=[], fill_color="red", line_color="orange", line_width=2, size=20)
+        #r2 = self.p.scatter([], [], fill_color="red", legend_label="Flagged", size=20)
+        #r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
+        #r2change = self.p.circle([], [], fill_color="red", line_color="orange", line_width=2, size=20)
         source = ColumnDataSource(dict(x=[], y=[], text=[]))
         glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
                 text_baseline="middle")
@@ -344,8 +351,10 @@ class App():
         self.set_background(new)
         # self.set_ui(self.ui_name)
 
-    def choose_test_handler(self, new):
+    # def choose_test_handler(self, new):
+    def choose_test_handler(self, attr, old, new):
         name = self.id2uiname(new)
+        print("DEBUG UI NAME:", name)
         self.set_ui(name)
         self.panel = list(self.ui.values())
 
