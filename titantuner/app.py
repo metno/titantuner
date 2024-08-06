@@ -106,8 +106,15 @@ class App():
             ui["datetime"] = datetime
 
         # Choose the titanlib test
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event", "SCTres", "SCTdual", "FirstGuess"], active=self.uiname2id(value))
-        dropdown.on_click(self.choose_test_handler)
+
+        # Probably possible to get a different displaid name for the option
+        # titanlib_tests = [("SCT", "sct"), ("Isolation", "isolation"), ("Buddy", "buddy"),
+        #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
+        titanlib_tests = ["sct", "isolation", "buddy", "buddy_event", "sctres", "sctdual", "fgt"]
+
+        dropdown = Select(title="Choose test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
+        dropdown.on_change("value", self.choose_test_handler)
+        value = dropdown.value
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
@@ -344,8 +351,8 @@ class App():
         self.set_background(new)
         # self.set_ui(self.ui_name)
 
-    def choose_test_handler(self, new):
-        name = self.id2uiname(new)
+    def choose_test_handler(self, attr, old, new):
+        name = new
         self.set_ui(name)
         self.panel = list(self.ui.values())
 
@@ -694,34 +701,3 @@ class App():
         RADIUS = 6378137.0 # in meters on the equator
         return np.radians(a) * RADIUS
 
-    def uiname2id(self, name):
-        if name == "sct":
-            return 0
-        elif name == "isolation":
-            return 1
-        elif name == "buddy":
-            return 2
-        elif name == "buddy_event":
-            return 3
-        elif name == "sctres":
-            return 4
-        elif name == "sctdual":
-            return 5
-        elif name == "fgt":
-            return 6
-
-    def id2uiname(self, id):
-        if id == 0:
-            return "sct"
-        elif id == 1:
-            return "isolation"
-        elif id == 2:
-            return "buddy"
-        elif id == 3:
-            return "buddy_event"
-        elif id == 4:
-            return "sctres"
-        elif id == 5:
-            return "sctdual"
-        elif id == 6:
-            return "fgt"
