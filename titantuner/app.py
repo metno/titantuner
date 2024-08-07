@@ -45,7 +45,6 @@ class App():
         self.datetime = date * 100 + hour
         self.set_dataset(0, self.datetime)
         self.setup()
-        # self.button_click_callback(None)
 
     def initialize_val_minmax(self, delta_key, Is):
         values_min = self.values[Is] - self.ui[delta_key].value * np.ones(len(Is))
@@ -260,11 +259,12 @@ class App():
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
         # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
-        dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
-            (Vendors.STAMEN_TERRAIN, "Terain"),
-            (Vendors.STAMEN_TONER, "Toner")])
-        dropdown.on_change("value", self.choose_background_handler)
-        ui["background"] = dropdown
+        # STAMEN_TERRAIN and STAMEN_TONER Not anymore available
+        #dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
+        #    (Vendors.STAMEN_TERRAIN, "Terain"),
+        #    (Vendors.STAMEN_TONER, "Toner")])
+        #dropdown.on_change("value", self.choose_background_handler)
+        #ui["background"] = dropdown
 
         button = Button(background="orange", label="Update")
         button.on_click(self.button_click_callback)
