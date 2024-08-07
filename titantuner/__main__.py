@@ -16,16 +16,18 @@ def main():
     parser.add_argument('-d', help='Directories or file patterns containing data', dest="directories_or_patterns", nargs='+')
     parser.add_argument('-p', type=int, default=8081, dest="port")
     parser.add_argument('--frostid', help="Load data from frost, using this ID")
+    parser.add_argument('--debug', help="Bokeh server in debug mode",  action="store_true")
 
     args = parser.parse_args()
     run(**vars(args))
 
-def run(directories_or_patterns, port, frostid):
+def run(directories_or_patterns, port, frostid, debug):
     app_handle = lambda doc: application(doc, directories_or_patterns, frostid)
     server = Server(
             app_handle,  # list of Bokeh applications
             port=port,
             allow_websocket_origin=[f"localhost:{port}"],
+            debug=debug,
         )
 
     # start timers and services and immediately return
