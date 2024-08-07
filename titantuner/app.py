@@ -107,9 +107,22 @@ class App():
             ui["datetime"] = datetime
 
         # Choose the titanlib test
-        dropdown = RadioButtonGroup(labels=["SCT", "Isolation", "Buddy", "Buddy event", "SCTres", "SCTdual", "FirstGuess"], active=self.uiname2id(value))
-        #dropdown.on_click(self.choose_test_handler)
-        dropdown.on_change("active", self.choose_test_handler)
+
+        # Probably possible to get a different displaid name for the option
+        # titanlib_tests = [("SCT", "sct"), ("Isolation", "isolation"), ("Buddy", "buddy"),
+        #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
+        titanlib_tests = ["sct", "isolation", "buddy", "buddy_event", "sctres", "sctdual", "fgt"]
+
+        #dropdown = Dropdown(label="Choose test", background="cyan", menu=titanlib_tests, aspect_ratio=2)
+        #print("DEBUG2 set_ui", dropdown)        
+        #dropdown.js_event_callbacks(self.choose_test_handler)
+        dropdown = Select(title="Choose test",  background="cyan", aspect_ratio=2, options=titanlib_tests, value=self.ui_name)
+        print(dir(dropdown))
+        dropdown.on_change("value", self.choose_test_handler)
+        #select.js_on_change("value", CustomJS(code="""
+        #console.log('select: value=' + this.value, this.toString())"""))
+        print("DEBUG2 set_ui", value)
+        value = dropdown.value
         ui["type"] = dropdown
 
         ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
@@ -218,6 +231,7 @@ class App():
 
         # Isolation test, begin
         elif value == "isolation":
+            print("DEBUG3 here we should set isolation ui!")
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
             ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
             ui["labels"] = CheckboxButtonGroup(labels=[displaid_label_buttons[0], displaid_label_buttons[2]], active=[0])
@@ -321,8 +335,8 @@ class App():
 
     def set_root(self, p):
         self.panel = list(self.ui.values())
-        # c = column([self.menu] + self.panel)
         c = column(self.panel)
+        print(f"UI TYPE in set_root: {self.ui['type']} should show {self.ui.keys()}")
 
         root = row(self.p, c)
         self.doc.clear()
@@ -353,10 +367,11 @@ class App():
 
     # def choose_test_handler(self, new):
     def choose_test_handler(self, attr, old, new):
-        name = self.id2uiname(new)
-        print("DEBUG UI NAME:", name)
+        name = new
+        print("DEBUG UI NAME in test handler:", name)
         self.set_ui(name)
         self.panel = list(self.ui.values())
+        print("DEBUG panel", self.ui.keys())
 
     def button_click_callback(self, attr):
         s_time = time.time()
@@ -703,34 +718,3 @@ class App():
         RADIUS = 6378137.0 # in meters on the equator
         return np.radians(a) * RADIUS
 
-    def uiname2id(self, name):
-        if name == "sct":
-            return 0
-        elif name == "isolation":
-            return 1
-        elif name == "buddy":
-            return 2
-        elif name == "buddy_event":
-            return 3
-        elif name == "sctres":
-            return 4
-        elif name == "sctdual":
-            return 5
-        elif name == "fgt":
-            return 6
-
-    def id2uiname(self, id):
-        if id == 0:
-            return "sct"
-        elif id == 1:
-            return "isolation"
-        elif id == 2:
-            return "buddy"
-        elif id == 3:
-            return "buddy_event"
-        elif id == 4:
-            return "sctres"
-        elif id == 5:
-            return "sctdual"
-        elif id == 6:
-            return "fgt"
