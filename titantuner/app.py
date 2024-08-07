@@ -266,8 +266,8 @@ class App():
         #dropdown.on_change("value", self.choose_background_handler)
         #ui["background"] = dropdown
 
-        button = Button(background="orange", label="Update")
-        button.on_click(self.button_click_callback)
+        button = Button(button_type="success", label="Apply test")
+        button.on_click(self.button_update_click)
         ui["button"] = button
 
         #ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
@@ -355,8 +355,13 @@ class App():
         name = new
         self.set_ui(name)
         self.panel = list(self.ui.values())
+    
+    def button_update_click(self, attr):
+        self.ui["button"].button_type = "warning"
+        self.ui["button"].label = "Busy"
+        self.doc.add_next_tick_callback(self.apply_test)
 
-    def button_click_callback(self, attr):
+    def apply_test(self):
         s_time = time.time()
 
         frac = self.ui["frac"].value
@@ -648,6 +653,8 @@ class App():
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
         self.old_flags = copy.deepcopy(flags)
+        self.ui["button"].button_type = "success"
+        self.ui["button"].label = "Apply test"
 
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
