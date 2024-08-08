@@ -70,24 +70,24 @@ class App():
 
         return values_min, values_max
 
-    def add_labels(self, boxcox_values, sct, Is, xx, yy):
+    def add_labels(self, obs_values, boxcox_values, sct, xx, yy, elevs):
         selected_labels = [self.ui["labels"].labels[i] for i in self.ui["labels"].active]
         texts = []
-        for t in range(len(Is)):
+        for t in range(len(xx)):
             curr = []
             if "Obs" in selected_labels:
-                curr += [displayed_value(self.variable, self.values[Is[t]])]
+                curr += [displayed_value(self.variable, obs_values[t])]
             if "BoxCoxObs" in selected_labels:
-                curr += ["%.1f" % boxcox_values[Is[t]]]
+                curr += ["%.1f" % boxcox_values[t]]
             if "Elev" in selected_labels:
-                curr += ["%d" % self.elevs[Is[t]]]
+                curr += ["%d" % elevs[t]]
             if "SCT" in selected_labels:
                 curr += ["%.1f" % sct[t]]
             texts += ['\n'.join(curr)]
         if len(self.ui["labels"].active) == 0:
             self.dt1.data = {'y':[], 'x':[], 'text':[]}
         else:
-            self.dt1.data = {'y':yy[Is], 'x':xx[Is], 'text':texts}
+            self.dt1.data = {'y':yy, 'x':xx, 'text':texts}
 
     def set_ui(self, value):
         self.ui_name = value
@@ -389,6 +389,11 @@ class App():
 
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
+        values_to_test = copy.deepcopy(self.values)
+        
+        yy = yy[Is]
+        xx = xx[Is]
+        values_to_test = values_to_test[Is]
         points = titanlib.Points(self.lats[Is], self.lons[Is], self.elevs[Is])
 
         #----------------------------------------------------------------------
@@ -407,20 +412,19 @@ class App():
             dz = self.ui["dz"].value
 
             BoxCox = self.ui["BoxCox"].value
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)
 
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct, rep = titanlib.sct(points, values_to_test[Is], nmin, nmax, inner_radius,
+            flags, sct, rep = titanlib.sct(points, values_to_test, nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
 
             sct = np.array(sct)
-            self.add_labels(values_to_test, sct, Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
@@ -445,11 +449,10 @@ class App():
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
 
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -471,7 +474,7 @@ class App():
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct = titanlib.sct_resistant(points, values_to_test[Is], 
+            flags, sct = titanlib.sct_resistant(points, values_to_test, 
                     obs_to_check, background_values, background_elab,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
@@ -482,7 +485,8 @@ class App():
                     debug, basic )
 
             sct = np.array(sct)
-            self.add_labels(values_to_test, sct, Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
+
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctdual":
@@ -512,11 +516,10 @@ class App():
 
             debug=False
             BoxCox = self.ui["BoxCox"].value
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+                values_to_test[Is] = apply_BoxCox(values_to_test, BoxCox)
 
-            flags = titanlib.sct_dual(points, values_to_test[Is],
+            flags = titanlib.sct_dual(points, values_to_test,
                     obs_to_check, t_event* np.ones(len(Is)), t_condition,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations,
@@ -524,7 +527,7 @@ class App():
                     t_test * np.ones(len(Is)),
                     debug )
 
-            self.add_labels(values_to_test, [], Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
 
         #----------------------------------------------------------------------
         if self.ui_type == "fgt":
@@ -540,11 +543,10 @@ class App():
             BoxCox = self.ui["BoxCox"].value
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -564,7 +566,7 @@ class App():
             if self.ui["background_elab"].active == 3:
                 background_elab=titanlib.MedianOuterCircle
  
-            flags, sct = titanlib.fgt(points, values_to_test[Is], 
+            flags, sct = titanlib.fgt(points, values_to_test, 
                     obs_to_check, background_values, 
                     background_uncertainties, background_elab,
                     nmin, nmax, inner_radius,
@@ -574,39 +576,37 @@ class App():
                     debug, basic)
 
             sct = np.array(sct)
-            self.add_labels(values_to_test, sct, Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
 
         #----------------------------------------------------------------------
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
-            self.add_labels([], [], Is, xx, yy)
+            self.add_labels(self.values[Is], [], [], xx, yy, self.elevs[Is])
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
                 BoxCox = self.ui["BoxCox"].value
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)              
-            flags = titanlib.buddy_check(points, values_to_test[Is],
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)        
+            flags = titanlib.buddy_check(points, values_to_test,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
-            self.add_labels(values_to_test, [], Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
 
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
-            values_to_test = copy.deepcopy(self.values)
             if self.variable == "rr":
                 BoxCox = self.ui["BoxCox"].value
-                values_to_test[Is] = apply_BoxCox(self.values[Is], BoxCox)
-            flags = titanlib.buddy_event_check(points, values_to_test[Is],
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+            flags = titanlib.buddy_event_check(points, values_to_test,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["event_threshold"].value,
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000,
                     self.ui["num_iterations"].value)
-            self.add_labels(values_to_test, [], Is, xx, yy)
+            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
         #----------------------------------------------------------------------
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
@@ -627,22 +627,22 @@ class App():
         if self.old_flags is not None and (flags.shape != self.old_flags.shape):
             self.old_flags = None
         if self.old_flags is None:
-            self.ds1.data = {'y':yy[Is[I0]], 'x':xx[Is[I0]]}
-            self.ds2.data = {'y':yy[Is[I1]], 'x':xx[Is[I1]]}
+            self.ds1.data = {'y':yy[I0], 'x':xx[I0]}
+            self.ds2.data = {'y':yy[I1], 'x':xx[I1]}
         else:
             I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
             I1new = np.where((flags == 1) & (self.old_flags == 1))[0]
             I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
             I1change = np.where((flags == 1) & (self.old_flags == 0))[0]
-            self.ds1.data = {'y':yy[Is[I0new]], 'x':xx[Is[I0new]]}
-            self.ds2.data = {'y':yy[Is[I1new]], 'x':xx[Is[I1new]]}
-            self.ds1change.data = {'y':yy[Is[I0change]], 'x':xx[Is[I0change]]}
-            self.ds2change.data = {'y':yy[Is[I1change]], 'x':xx[Is[I1change]]}
+            self.ds1.data = {'y':yy[I0new], 'x':xx[I0new]}
+            self.ds2.data = {'y':yy[I1new], 'x':xx[I1new]}
+            self.ds1change.data = {'y':yy[I0change], 'x':xx[I0change]}
+            self.ds2change.data = {'y':yy[I1change], 'x':xx[I1change]}
 
         self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
         self.ui["stations"].value = "%d (%.2f %%)" % (len(Is), 100.0 * len(I1) / len(Is))
 
-        # self.dh.data = {'y': yy[Is], 'x': xx[Is]
+        # self.dh.data = {'y': yy, 'x': xx
         # xoi0 = np.linspace(np.min(self.lats), np.max(self.lats), 50)
         # yoi0 = np.linspace(np.min(self.lons), np.max(self.lons), 50)
         # gridppOI.optimal_interpolation(
