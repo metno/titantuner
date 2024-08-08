@@ -148,7 +148,8 @@ class App():
             ui["dzmin"] = Slider(start=0, end=200, value=30, step=10, title="Min elev range to fit profile [m]")
             ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
             ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertical OI distance [m]")
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
 
             #self.r4 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="red")
@@ -177,8 +178,8 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # SCT resistant end
 
@@ -196,7 +197,8 @@ class App():
             ui["dhmax"] = Slider(start=0, end=20000, value=50000, step=1000, title="Max horiz OI distance [m]")
             ui["kth"] = Slider(start=1, end=200, value=3, step=1, title="use the k-th closest obs for horiz OI distance")
             ui["dz"] = Slider(start=100, end=1000, value=10000, step=100, title="Vertical OI distance [m]")
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # SCT dual end
 
@@ -217,8 +219,8 @@ class App():
             ui["v_fact"] = Slider(start=0, end=1, value=0.05, step=.01, title="Define range of valid values (multiplicative)")
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
-            ## ui["variable"] = RadioButtonGroup(labels=["ta", "rr"], active=0)
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par.(only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # FGT end
 
@@ -238,7 +240,8 @@ class App():
             ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy check, end
 
@@ -251,7 +254,8 @@ class App():
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
             ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
-            ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power par. (only for \"rr\" and >=0)")
+            if self.variable == 'rr':
+                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy-event check, end
 
@@ -410,10 +414,8 @@ class App():
             dhmin = self.ui["dhmin"].value
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
-
-            BoxCox = self.ui["BoxCox"].value
-            if self.variable == "rr":
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
 
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
@@ -428,8 +430,6 @@ class App():
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
-            print("DEBUG expected variable is", self.variable)
-
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
             inner_radius = self.ui["inner_radius"].value
@@ -445,11 +445,12 @@ class App():
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
 
-            BoxCox = self.ui["BoxCox"].value
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
 
-            if self.variable == "rr":
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                BoxCox = self.ui["BoxCox"].value
+                values_to_test = apply_BoxCox(values_to_test, BoxCox)
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
                 values_to_test = apply_BoxCox(values_to_test, BoxCox)
@@ -490,7 +491,6 @@ class App():
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctdual":
-
             nmin = self.ui["nmin"].value
             nmax = self.ui["nmax"].value
             inner_radius = self.ui["inner_radius"].value
@@ -515,9 +515,8 @@ class App():
                 t_condition=titanlib.Leq
 
             debug=False
-            BoxCox = self.ui["BoxCox"].value
-            if self.variable == "rr":
-                values_to_test[Is] = apply_BoxCox(values_to_test, BoxCox)
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
 
             flags = titanlib.sct_dual(points, values_to_test,
                     obs_to_check, t_event* np.ones(len(Is)), t_condition,
@@ -540,10 +539,12 @@ class App():
             tpos = self.ui["tpos"].value
             tneg = self.ui["tneg"].value
             dzmin = self.ui["dzmin"].value
-            BoxCox = self.ui["BoxCox"].value
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
-            if self.variable == "rr":
+            
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                BoxCox = self.ui["BoxCox"].value
+                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
                 values_to_test = apply_BoxCox(values_to_test, BoxCox)
@@ -582,11 +583,11 @@ class App():
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
             self.add_labels(self.values[Is], [], [], xx, yy, self.elevs[Is])
+
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
-            if self.variable == "rr":
-                BoxCox = self.ui["BoxCox"].value
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)        
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)         
             flags = titanlib.buddy_check(points, values_to_test,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
@@ -597,9 +598,8 @@ class App():
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
-            if self.variable == "rr":
-                BoxCox = self.ui["BoxCox"].value
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
+                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
             flags = titanlib.buddy_event_check(points, values_to_test,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["event_threshold"].value,
