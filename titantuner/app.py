@@ -274,6 +274,12 @@ class App():
         button = Button(button_type="success", label="Apply test")
         button.on_click(self.button_update_click)
         ui["apply_button"] = button
+        button = Button(button_type="success", label="Chain test with OR")
+        button.on_click(self.button_update_click)
+        ui["chain_button_or"] = button
+        button = Button(button_type="success", label="Chain test with AND")
+        button.on_click(self.button_update_click)
+        ui["chain_button_and"] = button
 
         #ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
         #ui["histogram"] = ph
@@ -364,6 +370,10 @@ class App():
     def button_update_click(self, attr):
         self.ui["apply_button"].button_type = "warning"
         self.ui["apply_button"].label = "Busy"
+        self.ui["chain_button_or"].button_type = "warning"
+        self.ui["chain_button_or"].label = "Busy"
+        self.ui["chain_button_and"].button_type = "warning"
+        self.ui["chain_button_and"].label = "Busy"
         self.doc.add_next_tick_callback(self.apply_test)
 
     def apply_test(self):
@@ -656,6 +666,10 @@ class App():
         self.old_flags = copy.deepcopy(flags)
         self.ui["apply_button"].button_type = "success"
         self.ui["apply_button"].label = "Apply test"
+        self.ui["chain_button_or"].button_type = "success"
+        self.ui["chain_button_or"].label = "Apply test"
+        self.ui["chain_button_and"].button_type = "success"
+        self.ui["chain_button_and"].label = "Apply test"
 
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
