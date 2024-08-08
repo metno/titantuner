@@ -14,6 +14,7 @@ from bokeh.palettes import RdYlBu3
 from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
+from bokeh.layouts import LayoutDOM
 
 import titantuner
 
@@ -320,7 +321,7 @@ class App():
         self.old_flags = None
 
     def set_root(self, p):
-        self.panel = list(self.ui.values())
+        self.panel = [v for v in self.ui.values() if v if isinstance(v, LayoutDOM)]
         # c = column([self.menu] + self.panel)
         c = column(self.panel)
 
@@ -331,7 +332,7 @@ class App():
     def reset_root(self):
         return
         print("Resetting")
-        self.panel = list(self.ui.values())
+        self.panel = [v for v in self.ui.values() if v if isinstance(v, LayoutDOM)]
         c = column(self.panel)
 
         root = row(self.p, c)
