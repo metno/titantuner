@@ -270,17 +270,8 @@ class App():
         #    (Vendors.STAMEN_TONER, "Toner")])
         #dropdown.on_change("value", self.choose_background_handler)
         #ui["background"] = dropdown
-
-        button = Button(button_type="success", label="Apply test")
-        button.on_click(self.button_update_click)
-        ui["apply_button"] = button
-        button = Button(button_type="success", label="Chain test with OR")
-        button.on_click(self.button_update_click)
-        ui["chain_button_or"] = button
-        button = Button(button_type="success", label="Chain test with AND")
-        button.on_click(self.button_update_click)
-        ui["chain_button_and"] = button
-
+        self.ui = ui
+        self.set_buttons()
         #ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
         #ui["histogram"] = ph
         self.edges = range(-20, 21)
@@ -288,7 +279,6 @@ class App():
         #self.r4 = ph.circle([], [], fill_color="gray", legend="OK", size=3)
         #self.r3 = ph.circle([], [], fill_color="red", legend="Flagged", size=6)
 
-        self.ui = ui
         self.ui_type = value
         self.set_root(self.p)
 
@@ -368,14 +358,23 @@ class App():
         self.panel = list(self.ui.values())
     
     def button_update_click(self, attr):
-        self.ui["apply_button"].button_type = "warning"
-        self.ui["apply_button"].label = "Busy"
-        self.ui["chain_button_or"].button_type = "warning"
-        self.ui["chain_button_or"].label = "Busy"
-        self.ui["chain_button_and"].button_type = "warning"
-        self.ui["chain_button_and"].label = "Busy"
+        for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
+            self.ui[button_ui_name].button_type = "warning"
+            self.ui[button_ui_name].label = "Busy"
         self.doc.add_next_tick_callback(self.apply_test)
-
+    
+    def set_buttons(self):
+        for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
+            label_button = button_ui_name.capitalize()
+            label_button = label_button.replace("_button", " test").replace("_and", " with AND").replace("_or", " with OR")
+            if button_ui_name not in self.ui:
+                button = Button(button_type="success", label=label_button)
+                button.on_click(self.button_update_click)
+                self.ui[button_ui_name] = button
+            else:
+                self.ui[button_ui_name].label = label_button
+                self.ui[button_ui_name].button_type = "success"             
+                
     def apply_test(self):
         s_time = time.time()
 
@@ -395,6 +394,7 @@ class App():
         Is = np.intersect1d(Is, Is0)
 
         if len(Is) == 0:
+            self.set_buttons()
             return
 
         obs_to_check = np.ones(len(Is))
@@ -664,13 +664,8 @@ class App():
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
         self.old_flags = copy.deepcopy(flags)
-        self.ui["apply_button"].button_type = "success"
-        self.ui["apply_button"].label = "Apply test"
-        self.ui["chain_button_or"].button_type = "success"
-        self.ui["chain_button_or"].label = "Apply test"
-        self.ui["chain_button_and"].button_type = "success"
-        self.ui["chain_button_and"].label = "Apply test"
-
+        self.set_buttons()
+        
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
         keys = [self.source.keys[index]]
