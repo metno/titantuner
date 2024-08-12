@@ -15,6 +15,7 @@ from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
 from bokeh.layouts import LayoutDOM
+from functools import partial
 
 import titantuner
 
@@ -226,8 +227,8 @@ class App():
 
         # Isolation test, begin
         elif value == "isolation":
-            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of observations")
-            ui["radius"] = Slider(start=1, end=50, value=15, step=1, title="Radius [km]")
+            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of additional observations")
+            ui["radius"] = Slider(start=0.25, end=50, value=15, step=0.25, title="Radius [km]")
             ui["labels"] = CheckboxButtonGroup(labels=[displaid_label_buttons[0], displaid_label_buttons[2]], active=[0])
         # Isolation test, end
         
@@ -260,7 +261,7 @@ class App():
         # Buddy-event check, end
 
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
-        ui["stations"] = TextInput(value="None", title="Stations (removed [%])")
+        ui["stations"] = TextInput(value="None", title="Stations: total | removed | new flagged | new unflag.")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
         # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
@@ -356,12 +357,12 @@ class App():
         name = new
         self.set_ui(name)
         self.panel = list(self.ui.values())
-    
+
     def button_update_click(self, attr):
         for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
             self.ui[button_ui_name].button_type = "warning"
             self.ui[button_ui_name].label = "Busy"
-        self.doc.add_next_tick_callback(self.apply_test)
+        self.doc.add_next_tick_callback(partial(self.apply_test, button_name=attr))
     
     def set_buttons(self):
         for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
@@ -369,13 +370,14 @@ class App():
             label_button = label_button.replace("_button", " test").replace("_and", " with AND").replace("_or", " with OR")
             if button_ui_name not in self.ui:
                 button = Button(button_type="success", label=label_button)
-                button.on_click(self.button_update_click)
+                button.on_click(partial(self.button_update_click, attr= button_ui_name))
                 self.ui[button_ui_name] = button
             else:
                 self.ui[button_ui_name].label = label_button
                 self.ui[button_ui_name].button_type = "success"             
-                
-    def apply_test(self):
+   
+    def apply_test(self, button_name):
+        print("you clicked on ", button_name)
         s_time = time.time()
 
         frac = self.ui["frac"].value
@@ -627,6 +629,8 @@ class App():
         flags = np.array(flags)
 
         for t in range(len(flags)):
+          # flag = 1 -> not OK
+          # flag = 0 -> OK or unconclusive test
           if flags[t] != 0 and flags[t] != 1:
               flags[t] = 0
 
@@ -639,7 +643,20 @@ class App():
         if self.old_flags is None:
             self.ds1.data = {'y':yy[I0], 'x':xx[I0]}
             self.ds2.data = {'y':yy[I1], 'x':xx[I1]}
+            self.ui["stations"].value = "%d | %d (%.2f %%) | NA | NA" % (len(Is), len(I1), 100.0 * len(I1) / len(Is))
         else:
+            print("DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
+            print("DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
+            print("DEBUG nb old flag 1:", len(np.where((self.old_flags == 1))[0]))
+            print("DEBUG nb old flag 0:", len(np.where((self.old_flags == 0))[0]))
+            if button_name == "combine_button_or":
+               # keep data if one of the tests do not flag it
+               flags = (~((flags==0) | (self.old_flags==0))).astype(int)
+            elif button_name == "combine_button_and":
+                # keep data only if none of the tests flag it
+                flags = (~((flags==0) & (self.old_flags==0))).astype(int)
+            print("AFTER COMBINE DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
+            print("AFTER COMBINE DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
             I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
             I1new = np.where((flags == 1) & (self.old_flags == 1))[0]
             I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
@@ -648,9 +665,9 @@ class App():
             self.ds2.data = {'y':yy[I1new], 'x':xx[I1new]}
             self.ds1change.data = {'y':yy[I0change], 'x':xx[I0change]}
             self.ds2change.data = {'y':yy[I1change], 'x':xx[I1change]}
+            self.ui["stations"].value = "%d | %d (%.2f %%) | %d | %d" % (len(Is), len(I1), 100.0 * len(I1) / len(Is), len(I1change), len(I0change))
 
         self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
-        self.ui["stations"].value = "%d (%.2f %%)" % (len(Is), 100.0 * len(I1) / len(Is))
 
         # self.dh.data = {'y': yy, 'x': xx
         # xoi0 = np.linspace(np.min(self.lats), np.max(self.lats), 50)
