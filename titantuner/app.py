@@ -15,8 +15,6 @@ from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
 from bokeh.layouts import LayoutDOM
-from functools import partial
-
 import titantuner
 
 displaid_label_buttons = ["Obs", "BoxCoxObs", "Elev", "SCT"]
@@ -95,7 +93,7 @@ class App():
         ui = dict()
 
         # Choose dataset/variable
-        dropdown = Select(title=self.source.key_label, options=[("%d" % i, name) for i, name in
+        dropdown = Select(title=self.source.key_label, background="cyan", options=[("%d" % i, name) for i, name in
             enumerate(self.source.keys)], value=str(self.dataset_index))
         dropdown.on_change("value", self.choose_dataset_handler)
         ui["dataset"] = dropdown
@@ -113,7 +111,7 @@ class App():
         #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
         titanlib_tests = ["sct", "isolation", "buddy", "buddy_event", "sctres", "sctdual", "fgt"]
 
-        dropdown = Select(title="Choose test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
+        dropdown = Select(title="Type of test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
         dropdown.on_change("value", self.choose_test_handler)
         value = dropdown.value
         ui["type"] = dropdown
@@ -264,6 +262,13 @@ class App():
         ui["stations"] = TextInput(value="None", title="Stations: total | removed | new flagged | new unflag.")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
+        # Choose test combinaison
+        self.combine_test = dico_combine_test_code2ui["single"]
+        dropdown = Select(title="Combine test with previous test", background="cyan", options=list(dico_combine_test_code2ui.values()), 
+                          value=self.combine_test)
+        dropdown.on_change("value", self.choose_combine_test_handler)
+        ui["combine_test"] = dropdown
+
         # Options: https://docs.bokeh.org/en/latest/docs/reference/tile_providers.html
         # STAMEN_TERRAIN and STAMEN_TONER Not anymore available
         #dropdown = Select(title="Map background", options=[(Vendors.CARTODBPOSITRON, "Positron"),
@@ -272,7 +277,7 @@ class App():
         #dropdown.on_change("value", self.choose_background_handler)
         #ui["background"] = dropdown
         self.ui = ui
-        self.set_buttons()
+        self.set_apply_button()
         #ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
         #ui["histogram"] = ph
         self.edges = range(-20, 21)
@@ -357,27 +362,28 @@ class App():
         name = new
         self.set_ui(name)
         self.panel = list(self.ui.values())
-
-    def button_update_click(self, attr):
-        for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
-            self.ui[button_ui_name].button_type = "warning"
-            self.ui[button_ui_name].label = "Busy"
-        self.doc.add_next_tick_callback(partial(self.apply_test, button_name=attr))
     
-    def set_buttons(self):
-        for button_ui_name in ["apply_button", "combine_button_or", "combine_button_and", "chain_button" ]:
-            label_button = button_ui_name.capitalize()
-            label_button = label_button.replace("_button", " test").replace("_and", " with AND").replace("_or", " with OR")
-            if button_ui_name not in self.ui:
-                button = Button(button_type="success", label=label_button)
-                button.on_click(partial(self.button_update_click, attr= button_ui_name))
-                self.ui[button_ui_name] = button
-            else:
-                self.ui[button_ui_name].label = label_button
-                self.ui[button_ui_name].button_type = "success"             
-   
-    def apply_test(self, button_name):
-        print("you clicked on ", button_name)
+    def choose_combine_test_handler(self, attr, old, new):
+        self.combine_test = dico_combine_test_ui2code[new]
+
+    def button_apply_click(self, attr):
+        self.ui["apply_button"].button_type = "warning"
+        self.ui["apply_button"].label = "Busy"
+        self.doc.add_next_tick_callback(self.apply_test)
+
+    def set_apply_button(self):
+        label_button = "Apply test"
+        button_ui_name = "apply_button"
+        if button_ui_name not in self.ui:
+            button = Button(button_type="success", label=label_button)
+            button.on_click(self.button_apply_click)
+            self.ui[button_ui_name] = button
+        else:
+            self.ui[button_ui_name].label = label_button
+            self.ui[button_ui_name].button_type = "success"
+
+    def apply_test(self):
+        print("Test combination chosen: ", self.combine_test)
         s_time = time.time()
 
         frac = self.ui["frac"].value
@@ -396,7 +402,7 @@ class App():
         Is = np.intersect1d(Is, Is0)
 
         if len(Is) == 0:
-            self.set_buttons()
+            self.set_apply_button()
             return
 
         obs_to_check = np.ones(len(Is))
@@ -629,8 +635,6 @@ class App():
         flags = np.array(flags)
 
         for t in range(len(flags)):
-          # flag = 1 -> not OK
-          # flag = 0 -> OK or unconclusive test
           if flags[t] != 0 and flags[t] != 1:
               flags[t] = 0
 
@@ -645,16 +649,28 @@ class App():
             self.ds2.data = {'y':yy[I1], 'x':xx[I1]}
             self.ui["stations"].value = "%d | %d (%.2f %%) | NA | NA" % (len(Is), len(I1), 100.0 * len(I1) / len(Is))
         else:
+            # flag = 1 -> not OK
+            # flag = 0 -> OK or unconclusive test
             print("DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
             print("DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
             print("DEBUG nb old flag 1:", len(np.where((self.old_flags == 1))[0]))
             print("DEBUG nb old flag 0:", len(np.where((self.old_flags == 0))[0]))
-            if button_name == "combine_button_or":
-               # keep data if one of the tests do not flag it
+            if self.combine_test == "combineOK_if_1_OK":
+               # keep data if it passes one of the tests 
+               # OK1 or OK2 -> OK
                flags = (~((flags==0) | (self.old_flags==0))).astype(int)
-            elif button_name == "combine_button_and":
-                # keep data only if none of the tests flag it
+            elif self.combine_test == "combineOK_if_both_OK": 
+                # keep data only if none of the tests flag it 
+                # (OK1 and OK2) -> OK
                 flags = (~((flags==0) & (self.old_flags==0))).astype(int)
+            elif self.combine_test == "combineBad_if_1_Bad": 
+               # reject data if flagged by one of the tests, keep the others 
+               # (BAD1 or BAD2) -> BAD
+               flags = ((flags==1) | (self.old_flags==1)).astype(int)
+            elif self.combine_test == "combineBad_if_both_Bad":
+                # reject data only if it passes none of the tests
+                # (BAD1 and BAD2) -> BAD
+                flags = ((flags==1) & (self.old_flags==1)).astype(int)
             print("AFTER COMBINE DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
             print("AFTER COMBINE DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
             I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
@@ -681,7 +697,7 @@ class App():
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
         self.old_flags = copy.deepcopy(flags)
-        self.set_buttons()
+        self.set_apply_button()
         
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
@@ -734,4 +750,12 @@ class App():
     def lon2x(self, a):
         RADIUS = 6378137.0 # in meters on the equator
         return np.radians(a) * RADIUS
+    
+dico_combine_test_code2ui = {"single": "Apply test (no combinaison/first test)",
+                                "combineOK_if_1_OK": "Combine: pass if pass this test or previous, reject others", # softer test
+                                "combineOK_if_both_OK": "Combine: pass if pass both this test and previous, reject others", # harder test
+                                "combineBad_if_1_Bad": "Combine: reject if flagged by this test or previous, keep others", # harder test
+                                "combineBad_if_both_Bad": "Combine: reject if flagged both by this test and previous, keep others", # softer test
+                                "chain": "Combine test: further test only OK values"}
+dico_combine_test_ui2code =  {v: k for k, v in dico_combine_test_code2ui.items()}
 
