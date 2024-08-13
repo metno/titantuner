@@ -15,6 +15,7 @@ from bokeh.plotting import figure, curdoc, show, output_file
 from bokeh.tile_providers import get_provider, Vendors
 import bokeh.application
 from bokeh.layouts import LayoutDOM
+from bokeh.models import ColorPicker
 import titantuner
 
 displaid_label_buttons = ["Obs", "BoxCoxObs", "Elev", "SCT"]
@@ -109,6 +110,7 @@ class App():
         # Probably possible to get a different displaid name for the option
         # titanlib_tests = [("SCT", "sct"), ("Isolation", "isolation"), ("Buddy", "buddy"),
         #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
+        # Can also be done with a dictionary, but I think it exists a more compact syntax using duple
         titanlib_tests = ["sct", "isolation", "buddy", "buddy_event", "sctres", "sctdual", "fgt"]
 
         dropdown = Select(title="Type of test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
@@ -263,9 +265,9 @@ class App():
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
         # Choose test combinaison
-        self.combine_test = dico_combine_test_code2ui["single"]
+        self.combine_test = "single"
         dropdown = Select(title="Combine test with previous test", background="cyan", options=list(dico_combine_test_code2ui.values()), 
-                          value=self.combine_test)
+                          value= dico_combine_test_code2ui[self.combine_test])
         dropdown.on_change("value", self.choose_combine_test_handler)
         ui["combine_test"] = dropdown
 
@@ -292,7 +294,8 @@ class App():
         # Mercator axes don't seem to work on some systems
         # self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
         #         x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
-        self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both', match_aspect=True)
+        # BUG: strech_both does not strech in height, thus adding the height manually
+        self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both', match_aspect=True, height=1200)
         self.p.add_tools(BoxZoomTool(match_aspect=True))
         self.p.title.text_font_size = "25px"
         self.p.title.align = "center"
@@ -300,20 +303,42 @@ class App():
         tile_provider = get_provider(Vendors.CARTODBPOSITRON)
         self.p.add_tile(tile_provider)
 
+        self.number_tests = 0
+        self.marker_color = "red"
+        print(f"in setup {self.number_tests} {self.marker_color}")
         r1 = self.p.circle([], [], fill_color="gray", legend_label="OK", size=20)
-        r2 = self.p.circle([], [], fill_color="red", legend_label="Flagged", size=20)
+        r2 = self.p.circle([], [], fill_color=self.marker_color, legend_label="Flagged", size=20)
         r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
-        r2change = self.p.circle([], [], fill_color="red", line_color="orange", line_width=2, size=20)
+        r2change = self.p.circle([], [], fill_color=self.marker_color, line_color="orange", line_width=2, size=20)
         source = ColumnDataSource(dict(x=[], y=[], text=[]))
         glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
                 text_baseline="middle")
         t1 = self.p.add_glyph(source, glyph)
 
+        def set_marker_color(attr, old, new):
+            # I don't see how to access the fill_color from self object, thus
+            # writing a local function!
+            # TODO I actually want to get different colors for each test performed
+            # To do so, I need to index the glyphs with self.number_tests
+            print(f"New color: {new} for test number {self.number_tests -1}")
+            self.marker_color = new
+            # set minus 1 as the number of tests is incremented before
+            #if(self.number_tests==0):
+            #    self.marker_color[0] = new
+            #else:
+            #    self.marker_color[self.number_tests - 1 ] = new
+            r2.glyph.fill_color = new
+            r2change.glyph.fill_color = new
+
+
+        picker = ColorPicker(title="(On going work for getting different colors for different tests when combining/chaining tests) Color of the flagg points", color="red", aspect_ratio=2)
+        #picker.js_link('color', r2.glyph, 'fill_color')
+        picker.on_change("color", set_marker_color)
+
         # h = self.p.hexbin([], [])
         # self.dh = h.data_source
-
+        self.picker = picker
         self.set_ui("sct")
-        # self.set_ui("isolation")
 
         self.ds1 = r1.data_source
         self.ds2 = r2.data_source
@@ -328,10 +353,11 @@ class App():
 
     def set_root(self, p):
         self.panel = [v for v in self.ui.values() if v if isinstance(v, LayoutDOM)]
-        # c = column([self.menu] + self.panel)
-        c = column(self.panel)
-
-        root = row(self.p, c)
+        c1 = column(self.panel) 
+        # NOTE: Not sure why column(self.panel, self.picker) does not work!
+        c0 = column(self.p, self.picker)
+        c0.sizing_mode = "stretch_both"
+        root = row(c0, c1)
         self.doc.clear()
         self.doc.add_root(root)
 
@@ -383,7 +409,11 @@ class App():
             self.ui[button_ui_name].button_type = "success"
 
     def apply_test(self):
-        print("Test combination chosen: ", self.combine_test)
+        if self.combine_test == "single":
+            self.number_tests = 0
+
+        print(f"Number of test combined: {self.number_tests}, combination chosen: ", dico_combine_test_code2ui[self.combine_test])
+
         s_time = time.time()
 
         frac = self.ui["frac"].value
@@ -400,6 +430,19 @@ class App():
 
         Is0 = np.where((self.lats > self.ui["latrange"].value[0]) & (self.lats < self.ui["latrange"].value[1]) & (self.lons > self.ui["lonrange"].value[0]) & (self.lons < self.ui["lonrange"].value[1]))[0]
         Is = np.intersect1d(Is, Is0)
+        if self.combine_test == "chain":
+        # So far we show only the results of the last commited test
+        # Needs to store the history to be able to give different colors to data flagged with different tests
+            if self.number_tests == 0:
+                print(f"Can't chain as no previous test. Change type of combinaison to single")
+                self.combine_test = "single"
+            if self.old_flags is not None and (Is.shape != self.old_flags.shape):
+                print(f"Can't chain if cooordinate selection is not identidal. Got selection of size {Is.shape}, while previous flags have size {self.old_flags.shape}.")
+                print(f"Change type of combinaison to single")
+                self.combine_test = "single"
+            else:
+                Ichain = np.where(self.old_flags == 0)
+                Is = np.intersect1d(Is, Ichain)
 
         if len(Is) == 0:
             self.set_apply_button()
@@ -651,10 +694,10 @@ class App():
         else:
             # flag = 1 -> not OK
             # flag = 0 -> OK or unconclusive test
-            print("DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
-            print("DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
-            print("DEBUG nb old flag 1:", len(np.where((self.old_flags == 1))[0]))
-            print("DEBUG nb old flag 0:", len(np.where((self.old_flags == 0))[0]))
+            #print("DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
+            #print("DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
+            #print("DEBUG nb old flag 1:", len(np.where((self.old_flags == 1))[0]))
+            #print("DEBUG nb old flag 0:", len(np.where((self.old_flags == 0))[0]))
             if self.combine_test == "combineOK_if_1_OK":
                # keep data if it passes one of the tests 
                # OK1 or OK2 -> OK
@@ -671,8 +714,8 @@ class App():
                 # reject data only if it passes none of the tests
                 # (BAD1 and BAD2) -> BAD
                 flags = ((flags==1) & (self.old_flags==1)).astype(int)
-            print("AFTER COMBINE DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
-            print("AFTER COMBINE DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
+            #print("AFTER COMBINE DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
+            #print("AFTER COMBINE DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
             I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
             I1new = np.where((flags == 1) & (self.old_flags == 1))[0]
             I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
@@ -698,6 +741,7 @@ class App():
 
         self.old_flags = copy.deepcopy(flags)
         self.set_apply_button()
+        self.number_tests = self.number_tests + 1
         
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
@@ -751,11 +795,11 @@ class App():
         RADIUS = 6378137.0 # in meters on the equator
         return np.radians(a) * RADIUS
     
-dico_combine_test_code2ui = {"single": "Apply test (no combinaison/first test)",
+dico_combine_test_code2ui = {"single": "Apply test (no combinaison / first test)",
                                 "combineOK_if_1_OK": "Combine: pass if pass this test or previous, reject others", # softer test
                                 "combineOK_if_both_OK": "Combine: pass if pass both this test and previous, reject others", # harder test
                                 "combineBad_if_1_Bad": "Combine: reject if flagged by this test or previous, keep others", # harder test
                                 "combineBad_if_both_Bad": "Combine: reject if flagged both by this test and previous, keep others", # softer test
-                                "chain": "Combine test: further test only OK values"}
+                                "chain": "Combine test: further test only unflagged values"}
 dico_combine_test_ui2code =  {v: k for k, v in dico_combine_test_code2ui.items()}
 
