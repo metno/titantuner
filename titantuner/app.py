@@ -78,11 +78,15 @@ class App():
             if "Obs" in selected_labels:
                 curr += [displayed_value(self.variable, obs_values[t])]
             if "BoxCoxObs" in selected_labels:
-                curr += ["%.1f" % boxcox_values[t]]
+                # boxcox value for previous tests is not stored
+                if len(boxcox_values)>0: 
+                    curr += ["%.1f" % boxcox_values[t]]
             if "Elev" in selected_labels:
                 curr += ["%d" % elevs[t]]
             if "SCT" in selected_labels:
-                curr += ["%.1f" % sct[t]]
+                if len(sct)>0:
+                # sct for previous tests is not stored
+                    curr += ["%.1f" % sct[t]]
             texts += ['\n'.join(curr)]
         if len(self.ui["labels"].active) == 0:
             self.dt1.data = {'y':[], 'x':[], 'text':[]}
@@ -111,7 +115,7 @@ class App():
         # titanlib_tests = [("SCT", "sct"), ("Isolation", "isolation"), ("Buddy", "buddy"),
         #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
         # Can also be done with a dictionary, but I think it exists a more compact syntax using duple
-        titanlib_tests = ["sct", "isolation", "buddy", "buddy_event", "sctres", "sctdual", "fgt"]
+        titanlib_tests = ["sctdual", "buddy_event", "buddy", "sct", "isolation", "sctres", "fgt"]
 
         dropdown = Select(title="Type of test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
         dropdown.on_change("value", self.choose_test_handler)
@@ -305,7 +309,8 @@ class App():
 
         self.number_tests = 0
         self.marker_color = "red"
-        print(f"in setup {self.number_tests} {self.marker_color}")
+        self.ds_hist = []
+        self.glyph_hist = []
         r1 = self.p.circle([], [], fill_color="gray", legend_label="OK", size=20)
         r2 = self.p.circle([], [], fill_color=self.marker_color, legend_label="Flagged", size=20)
         r1change = self.p.circle([], [], fill_color="gray", line_color="orange", line_width=2, size=20)
@@ -314,42 +319,27 @@ class App():
         glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
                 text_baseline="middle")
         t1 = self.p.add_glyph(source, glyph)
-
-        def set_marker_color(attr, old, new):
-            # I don't see how to access the fill_color from self object, thus
-            # writing a local function!
-            # TODO I actually want to get different colors for each test performed
-            # To do so, I need to index the glyphs with self.number_tests
-            print(f"New color: {new} for test number {self.number_tests -1}")
-            self.marker_color = new
-            # set minus 1 as the number of tests is incremented before
-            #if(self.number_tests==0):
-            #    self.marker_color[0] = new
-            #else:
-            #    self.marker_color[self.number_tests - 1 ] = new
-            r2.glyph.fill_color = new
-            r2change.glyph.fill_color = new
-
-
-        picker = ColorPicker(title="(On going work for getting different colors for different tests when combining/chaining tests) Color of the flagg points", color="red", aspect_ratio=2)
-        #picker.js_link('color', r2.glyph, 'fill_color')
-        picker.on_change("color", set_marker_color)
-
-        # h = self.p.hexbin([], [])
-        # self.dh = h.data_source
+        t1.level = "overlay"
+        self.dt1 = t1.data_source
+        self.ds1 = r1.data_source
+        self.cercle_glyph1 = r1.glyph
+        self.ds2 = r2.data_source
+        self.cercle_glyph2 = r2.glyph
+        self.ds1change = r1change.data_source
+        self.cercle_glyph1change = r1change.glyph
+        self.ds2change = r2change.data_source
+        self.cercle_glyph2change = r2change.glyph
+        self.old_flags = None
+        picker = ColorPicker(title="Color of the last flagged points", color="red", aspect_ratio=2)
+        picker.on_change("color", self.set_marker_color)
         self.picker = picker
         self.set_ui("sct")
 
-        self.ds1 = r1.data_source
-        self.ds2 = r2.data_source
-        self.ds1change = r1change.data_source
-        self.ds2change = r2change.data_source
-        #self.ds3 = self.r3.data_source
-        #self.ds4 = self.r4.data_source
-        self.dt1 = t1.data_source
-
         self.set_root(self.p)
-        self.old_flags = None
+
+        # h = self.p.hexbin([], [])
+        # self.dh = h.data_source
+      
 
     def set_root(self, p):
         self.panel = [v for v in self.ui.values() if v if isinstance(v, LayoutDOM)]
@@ -384,6 +374,12 @@ class App():
         self.set_background(new)
         # self.set_ui(self.ui_name)
 
+    def set_marker_color(self, attr, old, new):
+        print(f"New color: {new} for test number {self.number_tests -1}")
+        self.marker_color = new
+        self.cercle_glyph2.fill_color = new
+        self.cercle_glyph2change.fill_color = new
+
     def choose_test_handler(self, attr, old, new):
         name = new
         self.set_ui(name)
@@ -412,7 +408,16 @@ class App():
         if self.combine_test == "single":
             self.number_tests = 0
 
-        print(f"Number of test combined: {self.number_tests}, combination chosen: ", dico_combine_test_code2ui[self.combine_test])
+        colors = ["green", "cyan", "magenta", "blue", "gold", "brown"]
+        if (self.number_tests >0 and self.combine_test == "chain"):
+            flagged_legend = f"flagged by test {self.number_tests} ({self.ui_type})"
+            r_hist = self.p.circle([], [], fill_color=self.marker_color, legend_label=flagged_legend, size=20)
+            self.ds_hist.append(r_hist.data_source)
+            self.glyph_hist.append(r_hist.glyph)
+            self.picker.color = colors[np.mod(self.number_tests -1, len(colors))]
+
+        print(f"Number of test combined: {self.number_tests} "\
+              f"combination chosen: {dico_combine_test_code2ui[self.combine_test]}, test type: {self.ui_type}, color {self.marker_color}")
 
         s_time = time.time()
 
@@ -430,19 +435,31 @@ class App():
 
         Is0 = np.where((self.lats > self.ui["latrange"].value[0]) & (self.lats < self.ui["latrange"].value[1]) & (self.lons > self.ui["lonrange"].value[0]) & (self.lons < self.ui["lonrange"].value[1]))[0]
         Is = np.intersect1d(Is, Is0)
+        Iall_tests = Is
         if self.combine_test == "chain":
-        # So far we show only the results of the last commited test
-        # Needs to store the history to be able to give different colors to data flagged with different tests
             if self.number_tests == 0:
                 print(f"Can't chain as no previous test. Change type of combinaison to single")
                 self.combine_test = "single"
-            if self.old_flags is not None and (Is.shape != self.old_flags.shape):
-                print(f"Can't chain if cooordinate selection is not identidal. Got selection of size {Is.shape}, while previous flags have size {self.old_flags.shape}.")
-                print(f"Change type of combinaison to single")
-                self.combine_test = "single"
+            #
+            #if self.old_flags is not None and (Is.shape != self.old_flags.shape):
+            # Not a good criteria when chaining several tests, old flags will change size
+            # assume the user do not change the coordinates!
+            #    print(f"Can't chain if cooordinate selection is not identidal. Got selection of size {Is.shape}, while previous flags have size {self.old_flags.shape}.")
+            #    print(f"Change type of combinaison to single")
+            #    self.combine_test = "single"
             else:
-                Ichain = np.where(self.old_flags == 0)
-                Is = np.intersect1d(Is, Ichain)
+                old_I0 = np.where(self.old_flags == 0)[0]
+                print(f"old flags has {len(old_I0)}/{len(self.old_flags)} not flagged values")
+                if self.number_tests == 1:
+                    old_I1 = np.where(self.old_flags == 1)[0]
+                    self.old_I1 = old_I1
+                    print(f"old flags has {len(old_I1)}/{len(self.old_flags)} flagged values")
+                else:
+                    old_I1 = np.union1d(np.where(self.old_flags == 1)[0], self.old_I1)
+                    self.old_I1 = old_I1
+                    print(f"old flags has {len(old_I1)}/{len(self.old_flags)} flagged values")
+                
+                Is = np.intersect1d(Is, old_I0)
 
         if len(Is) == 0:
             self.set_apply_button()
@@ -456,9 +473,13 @@ class App():
         xx = self.lon2x(self.lons)
         values_to_test = copy.deepcopy(self.values)
         
-        yy = yy[Is]
-        xx = xx[Is]
-        values_to_test = values_to_test[Is]
+        if self.combine_test == "chain":
+            old_yy = yy[old_I1]
+            old_xx = xx[old_I1]
+
+        yy_Is = yy[Is]
+        xx_Is = xx[Is]
+        values_to_test_Is = values_to_test[Is]
         points = titanlib.Points(self.lats[Is], self.lons[Is], self.elevs[Is])
 
         #----------------------------------------------------------------------
@@ -476,18 +497,19 @@ class App():
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
 
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct, rep = titanlib.sct(points, values_to_test, nmin, nmax, inner_radius,
+            flags, sct, rep = titanlib.sct(points, values_to_test_Is, nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
                     dzmin, dhmin, dz, t2pos * np.ones(len(Is)), t2neg * np.ones(len(Is)),
                     eps2 * np.ones(len(Is)))
 
             sct = np.array(sct)
-            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
+            if self.combine_test != "chain":
+                self.add_labels(self.values[Is], values_to_test_Is, sct, xx_Is, yy_Is, self.elevs[Is])
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
@@ -511,10 +533,10 @@ class App():
 
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
                 BoxCox = self.ui["BoxCox"].value
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -536,7 +558,7 @@ class App():
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], self.elevs[Is], self.values[Is], 1577836800, [new[1]], [new[0]])
 
-            flags, sct = titanlib.sct_resistant(points, values_to_test, 
+            flags, sct = titanlib.sct_resistant(points, values_to_test_Is, 
                     obs_to_check, background_values, background_elab,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations, nminprof,
@@ -547,7 +569,7 @@ class App():
                     debug, basic )
 
             sct = np.array(sct)
-            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], values_to_test_Is, sct, xx_Is, yy_Is, self.elevs[Is])
 
 
         #----------------------------------------------------------------------
@@ -577,9 +599,9 @@ class App():
 
             debug=False
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
 
-            flags = titanlib.sct_dual(points, values_to_test,
+            flags = titanlib.sct_dual(points, values_to_test_Is,
                     obs_to_check, t_event* np.ones(len(Is)), t_condition,
                     nmin, nmax, inner_radius,
                     outer_radius, niterations,
@@ -587,7 +609,7 @@ class App():
                     t_test * np.ones(len(Is)),
                     debug )
 
-            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], values_to_test_Is, [], xx_Is, yy_Is, self.elevs[Is])
 
         #----------------------------------------------------------------------
         if self.ui_type == "fgt":
@@ -605,10 +627,10 @@ class App():
             
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
                 BoxCox = self.ui["BoxCox"].value
-                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
                 values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
                 values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test = apply_BoxCox(values_to_test, BoxCox)
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -628,7 +650,7 @@ class App():
             if self.ui["background_elab"].active == 3:
                 background_elab=titanlib.MedianOuterCircle
  
-            flags, sct = titanlib.fgt(points, values_to_test, 
+            flags, sct = titanlib.fgt(points, values_to_test_Is, 
                     obs_to_check, background_values, 
                     background_uncertainties, background_elab,
                     nmin, nmax, inner_radius,
@@ -638,36 +660,36 @@ class App():
                     debug, basic)
 
             sct = np.array(sct)
-            self.add_labels(self.values[Is], values_to_test, sct, xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], values_to_test_Is, sct, xx_Is, yy_Is, self.elevs[Is])
 
         #----------------------------------------------------------------------
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
-            self.add_labels(self.values[Is], [], [], xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], [], [], xx_Is, yy_Is, self.elevs[Is])
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)         
-            flags = titanlib.buddy_check(points, values_to_test,
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)         
+            flags = titanlib.buddy_check(points, values_to_test_Is,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
-            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], values_to_test_Is, [], xx_Is, yy_Is, self.elevs[Is])
 
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
             if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test = apply_BoxCox(values_to_test, self.ui["BoxCox"].value)
-            flags = titanlib.buddy_event_check(points, values_to_test,
+                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
+            flags = titanlib.buddy_event_check(points, values_to_test_Is,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["event_threshold"].value,
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000,
                     self.ui["num_iterations"].value)
-            self.add_labels(self.values[Is], values_to_test, [], xx, yy, self.elevs[Is])
+            self.add_labels(self.values[Is], values_to_test_Is, [], xx_Is, yy_Is, self.elevs[Is])
         #----------------------------------------------------------------------
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
@@ -685,19 +707,21 @@ class App():
         I1 = np.where(flags == 1)[0]
 
         y0, x0 = np.histogram(self.values[Is[I0]], bins=self.edges)
-        if self.old_flags is not None and (flags.shape != self.old_flags.shape):
+        if self.combine_test !="chain" and self.old_flags is not None and (flags.shape != self.old_flags.shape):
+            print(f"CAUTION here is old flag reinitialized to None, flags and old flags don't have the same size")
+            if self.old_flags is not None:
+                  print(flags.shape, self.old_flags.shape)
             self.old_flags = None
-        if self.old_flags is None:
-            self.ds1.data = {'y':yy[I0], 'x':xx[I0]}
-            self.ds2.data = {'y':yy[I1], 'x':xx[I1]}
-            self.ui["stations"].value = "%d | %d (%.2f %%) | NA | NA" % (len(Is), len(I1), 100.0 * len(I1) / len(Is))
+        if self.old_flags is None or self.combine_test =="chain":
+            self.ds1.data = {'y':yy_Is[I0], 'x':xx_Is[I0]}
+            self.ds2.data = {'y':yy_Is[I1], 'x':xx_Is[I1]}
+            if(self.old_flags is None):
+                self.ui["stations"].value = "%d | %d (%.2f %%) | NA | NA" % (len(Is), len(I1), 100.0 * len(I1) / len(Is))
+            else:
+                self.ui["stations"].value = "%d | %d (%.2f %%) | %d | 0" % (len(Iall_tests), len(I1) + len(old_I1), 100.0 * (len(I1) + len(old_I1)) / len(Is), (len(I1)))
         else:
             # flag = 1 -> not OK
             # flag = 0 -> OK or unconclusive test
-            #print("DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
-            #print("DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
-            #print("DEBUG nb old flag 1:", len(np.where((self.old_flags == 1))[0]))
-            #print("DEBUG nb old flag 0:", len(np.where((self.old_flags == 0))[0]))
             if self.combine_test == "combineOK_if_1_OK":
                # keep data if it passes one of the tests 
                # OK1 or OK2 -> OK
@@ -714,21 +738,25 @@ class App():
                 # reject data only if it passes none of the tests
                 # (BAD1 and BAD2) -> BAD
                 flags = ((flags==1) & (self.old_flags==1)).astype(int)
-            #print("AFTER COMBINE DEBUG nb flag 1:", len(np.where((flags == 1))[0]))
-            #print("AFTER COMBINE DEBUG nb flag 0:", len(np.where((flags == 0))[0]))
             I0new = np.where((flags == 0) & (self.old_flags == 0))[0]
             I1new = np.where((flags == 1) & (self.old_flags == 1))[0]
             I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
             I1change = np.where((flags == 1) & (self.old_flags == 0))[0]
-            self.ds1.data = {'y':yy[I0new], 'x':xx[I0new]}
-            self.ds2.data = {'y':yy[I1new], 'x':xx[I1new]}
-            self.ds1change.data = {'y':yy[I0change], 'x':xx[I0change]}
-            self.ds2change.data = {'y':yy[I1change], 'x':xx[I1change]}
+            self.ds1.data = {'y':yy_Is[I0new], 'x':xx_Is[I0new]}
+            self.ds2.data = {'y':yy_Is[I1new], 'x':xx_Is[I1new]}
+            self.ds1change.data = {'y':yy_Is[I0change], 'x':xx_Is[I0change]}
+            self.ds2change.data = {'y':yy_Is[I1change], 'x':xx_Is[I1change]}
             self.ui["stations"].value = "%d | %d (%.2f %%) | %d | %d" % (len(Is), len(I1), 100.0 * len(I1) / len(Is), len(I1change), len(I0change))
+
+
+
+        if (self.number_tests >0 and self.combine_test == "chain"):
+            self.ds_hist[self.number_tests -1].data = {'y':old_yy, 'x':old_xx}
+            self.add_labels(self.values[Iall_tests], [], [], xx[Iall_tests], yy[Iall_tests],  self.elevs[Iall_tests])
 
         self.ui["mean"].value = "%.1f" % (np.nanmean(self.values[Is[I0]]))
 
-        # self.dh.data = {'y': yy, 'x': xx
+        # self.dh.data = {'y': yy_Is, 'x': xx_Is
         # xoi0 = np.linspace(np.min(self.lats), np.max(self.lats), 50)
         # yoi0 = np.linspace(np.min(self.lons), np.max(self.lons), 50)
         # gridppOI.optimal_interpolation(
@@ -740,6 +768,7 @@ class App():
         # self.ds3.data = {'x': self.values[Is[I1]], 'y':  self.elevs[Is[I]]}
 
         self.old_flags = copy.deepcopy(flags)
+        self.old_ui_type = self.ui_type
         self.set_apply_button()
         self.number_tests = self.number_tests + 1
         
