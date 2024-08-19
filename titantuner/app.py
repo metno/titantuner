@@ -325,12 +325,10 @@ class App():
             flag_to_plot = [-99, self.number_tests -1]
         else:
             flag_to_plot = np.sort(np.unique(self.data['test_code']))
-        print("code found when plotting", flag_to_plot)
         for test in flag_to_plot:
             Itest = np.where(self.data["test_code"]==test)[0]
             if test != -99:
                 color = self.colors[np.mod(test, len(self.colors))]
-                print("color for test ",test, color, len(self.data['x'][Itest]))
                 #if (self.number_tests >0 and self.combine_test == "chain"):
                 #if test != self.number_tests:
                 if self.combine_test == "chain" or self.combine_test == "single":
@@ -382,13 +380,6 @@ class App():
                     )
             Ichange = np.where( (self.data['unflagged_new'] | self.data['flagged_new']))
             flagged_change_plot.data_source.data = {"x": self.data['x'][Ichange] , "y": self.data['y'][Ichange]}
-            print("number of tests , different codes ", self.number_tests, np.sort(np.unique(self.data['test_code'])))
-
-        else:
-            print("don't show orange circle")
-            print("old_flags is ", self.old_flags)
-            print("number of tests , different codes ", self.number_tests, np.sort(np.unique(self.data['test_code'])))
-                
 
             # flagged_least1_plot = self.p.scatter([], [],
             # fill_alpha=0, size=13,
@@ -428,7 +419,6 @@ class App():
     def setup_initialize(self):
         self.number_tests = 0
         self.marker_color = "red"
-        print("colors reinitialized")
         self.colors = ["red", "green", "cyan", "magenta", "blue", "gold", "brown"]
         self.old_flags = None
         self.dico_test_code2type = {0: None}
@@ -460,7 +450,9 @@ class App():
 
     def choose_dataset_handler(self, attr, old, new):
         self.set_dataset(int(new), self.datetime)
-        self.set_ui(self.ui_name)
+        self.setup_initialize()
+       # self.set_ui(self.ui_name)
+
 
     def choose_datetime_handler(self, attr, old, new):
         new = int(new)
