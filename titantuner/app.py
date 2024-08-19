@@ -46,7 +46,7 @@ class App():
         date, hour = titantuner.unixtime_to_date(time.time() - 2 * 3600)
         self.datetime = date * 100 + hour
         self.set_dataset(0, self.datetime)
-        self.setup_initialize()
+        self.setup_initialize(first_map=True)
 
     def initialize_val_minmax(self, delta_key, Is):
         values_min = self.data['values'][Is] - self.ui[delta_key].value * np.ones(len(Is))
@@ -302,24 +302,32 @@ class App():
                     'values':self.values,
                     'labels': np.array([displayed_value(self.variable, val) for val in self.values]).astype(str)}
     
-    def plot_config(self, plot_orange_if_possible=True):
+    def plot_config(self, plot_orange_if_possible=True, first_map=False):
         # Mercator axes don't seem to work on some systems
         # self.p = figure(title="Titantuner", plot_height=1000, plot_width=1200,
         #         x_axis_type="mercator", y_axis_type="mercator", match_aspect=True)
         # BUG: strech_both does not strech in height, thus adding the height manually
-        self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both', match_aspect=True, height=1200)
-        self.p.add_tools(BoxZoomTool(match_aspect=True))
+    
+        if(first_map):
+            self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both', match_aspect=True, height=1100)
+            self.p.add_tools(BoxZoomTool(match_aspect=True))
+        else:
+            # the figure is recreated to avoid getting a very big figure object
+            # A better alternative would be to modify the existing objects, and update only the source
+            # https://discourse.bokeh.org/t/clearing-plot-or-removing-all-glyphs/6792
+            # here only the zoom is taken from the previous figure
+            my_x_range =  self.p.x_range
+            my_y_range =  self.p.y_range
+            self.p = figure(tools="pan,wheel_zoom,save,reset", title="Titantuner", sizing_mode='stretch_both',
+                            match_aspect=True, height=1100, 
+                            x_range=(my_x_range.start, my_x_range.end), y_range=(my_y_range.start, my_y_range.end) )
+            self.p.add_tools(BoxZoomTool(match_aspect=True))
+
         self.p.title.text_font_size = "25px"
-        self.p.title.align = "center"
+        self.p.title.align = "center"            
 
         tile_provider = get_provider(Vendors.CARTODBPOSITRON)
         self.p.add_tile(tile_provider)
-
-        data_test = {'x':np.array([1e6, 1e6, 1e6]),
-                                 'y':np.array([8.8e6, 8.7e6, 8.6e6]),
-                                 'test_code': np.array([0, -99, 0]),
-                                'values': np.array([40, 40, 40])}
-        
 
         if self.combine_test != "chain" and self.number_tests>0:
             flag_to_plot = [-99, self.number_tests -1]
@@ -388,10 +396,8 @@ class App():
             # line_width = 2,
             # legend_label="flagged at least once"
             # )
-
-                #Ileast1 = np.where( self.data['flagged_least1'])
-                
-                #flagged_least1_plot.data_source.data = {"x": self.data['x'][Ileast1] , "y": self.data['y'][Ileast1]}
+            #Ileast1 = np.where( self.data['flagged_least1'])
+            #flagged_least1_plot.data_source.data = {"x": self.data['x'][Ileast1] , "y": self.data['y'][Ileast1]}
 
         marker_labels = self.p.text('x', 'y',
                         font_size="7pt",
@@ -402,21 +408,17 @@ class App():
                         text='labels',
                         source=self.data
                      )
-        source = ColumnDataSource(dict(x=[], y=[], text=[]))
-        glyph = Text(x="x", y="y", text="text", text_color="#000000", text_align="center",
-                text_baseline="middle")
-        t1 = self.p.add_glyph(source, glyph)
-        t1.level = "overlay"
 
-        self.p.legend.location = "top_left"
-        self.p.legend.title = "Test type"
+        if(self.p.legend):
+            self.p.legend.location = "top_left"
+            self.p.legend.title = "Test type"
 
     def color_picker_initialize(self):
         picker = ColorPicker(title="Color of the last flagged points", color="red", aspect_ratio=2)
         picker.on_change("color", self.set_marker_color)
         self.picker = picker
     
-    def setup_initialize(self):
+    def setup_initialize(self, first_map=True):
         self.number_tests = 0
         self.marker_color = "red"
         self.colors = ["red", "green", "cyan", "magenta", "blue", "gold", "brown"]
@@ -424,7 +426,7 @@ class App():
         self.dico_test_code2type = {0: None}
         self.data_initialize()
         self.combine_test = "single"
-        self.plot_config(plot_orange_if_possible=False)
+        self.plot_config(plot_orange_if_possible=False, first_map=first_map)
         self.color_picker_initialize()
         self.set_ui("sctdual")
         self.set_root(self.p)
@@ -449,9 +451,17 @@ class App():
         curdoc().add_root(root)
 
     def choose_dataset_handler(self, attr, old, new):
+        # if the previous dataset is empty, map is not yet shown
+        if (self.values is None or len(self.values)==0):
+            first_map=True
+        else:
+            first_map=False
         self.set_dataset(int(new), self.datetime)
-        self.setup_initialize()
-       # self.set_ui(self.ui_name)
+        self.setup_initialize(first_map=first_map)
+        #self.data_initialize()
+        #self.plot_config(plot_orange_if_possible=False, first_map=True)
+        #self.reset_root()
+        #self.set_ui(self.ui_name)
 
 
     def choose_datetime_handler(self, attr, old, new):
@@ -843,7 +853,7 @@ class App():
         Iflagged_all_tests = np.where(self.data['test_code'] != -99)[0]
 
         self.data['flagged_least1'][Is[I1]] = np.full(len(I1), True)
-        self.plot_config(plot_orange_if_possible=True)
+        self.plot_config(plot_orange_if_possible=True, first_map=False)
         self.set_root(self.p)
         self.ui["mean"].value = "%.1f" % (np.nanmean(values_to_test_Is[I0]))
 
@@ -915,10 +925,11 @@ class App():
         return np.radians(a) * RADIUS
     
 dico_combine_test_code2ui = {"single": "Apply test (no combinaison / first test)",
+                                "chain": "Combine test: further test only unflagged values",
                                 "combineOK_if_1_OK": "Combine: pass if pass this test or previous, reject others", # softer test
                                 "combineOK_if_both_OK": "Combine: pass if pass both this test and previous, reject others", # harder test
                                 "combineBad_if_1_Bad": "Combine: reject if flagged by this test or previous, keep others", # harder test
                                 "combineBad_if_both_Bad": "Combine: reject if flagged both by this test and previous, keep others", # softer test
-                                "chain": "Combine test: further test only unflagged values"}
+                            }
 dico_combine_test_ui2code =  {v: k for k, v in dico_combine_test_code2ui.items()}
 
