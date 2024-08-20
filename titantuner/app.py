@@ -357,7 +357,7 @@ class App():
             self.p.scatter('x', 'y', source={'x': self.data['x'][Itest],
                                              'y': self.data['y'][Itest]
                                             },
-            fill_alpha=0.9, size=14,
+            fill_alpha=0.9, size=16,
             marker='circle',
             line_width = 1,
             color=color,
@@ -379,7 +379,7 @@ class App():
         
         if self.old_flags is not None and self.combine_test != "chain" and plot_orange_if_possible==True :
             flagged_change_plot = self.p.scatter([], [],
-                    size=16,
+                    size=17,
                     marker='circle',
                     line_color = 'orange',
                     color=None,
@@ -400,7 +400,7 @@ class App():
             #flagged_least1_plot.data_source.data = {"x": self.data['x'][Ileast1] , "y": self.data['y'][Ileast1]}
 
         marker_labels = self.p.text('x', 'y',
-                        font_size="7pt",
+                        font_size="9pt",
                         text_font_style = 'bold',
                         text_color="#000000",
                         text_align="center",
