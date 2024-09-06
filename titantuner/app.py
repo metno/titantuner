@@ -240,7 +240,10 @@ class App():
             ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
             ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
-            ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
+            if self.variable == 'rr':
+                ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
+            else:
+                ui["elev_gradient"] = Slider(start=-5, end=10, value=6.5, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             if self.variable == 'rr':
@@ -330,7 +333,7 @@ class App():
         self.p.add_tile(tile_provider)
 
         if self.combine_test != "chain" and self.number_tests>0:
-            flag_to_plot = [-99, self.number_tests -1]
+            flag_to_plot = [-99, self.number_tests ] # -1
         else:
             flag_to_plot = np.sort(np.unique(self.data['test_code']))
         for test in flag_to_plot:
@@ -572,7 +575,12 @@ class App():
             Is = np.where(self.data['test_code']==-99)[0]
             print(f"start, chained on indexes", Is)
         else:
-            Is = np.array(range(len(Iall_tests)))
+            if self.number_tests == 0:
+                Is = np.array(range(len(Iall_tests)))
+            else:   
+                Is = self.old_Is
+           # if test combined with the result of all previous tests
+           # Is = np.array(range(len(Iall_tests)))
             #print(f"start test on indexes", Is)
 
         if len(Is) == 0:
@@ -835,21 +843,26 @@ class App():
             elif self.combine_test == "combineBad_if_1_Bad": 
                # reject data if flagged by one of the tests, keep the others 
                # (BAD1 or BAD2) -> BAD
-               flags = ((flags==1) | (self.old_flags==1)).astype(int)
+                print("2nd combined test has flagged ", len(np.where(flags==1)))
+                print("previous test had flagged ", len(np.where(flags==1)))
+                flags = ((flags==1) | (self.old_flags==1)).astype(int)
+                print("After combinaison, test has flagged: ", len(np.where(flags==1)))
+
             elif self.combine_test == "combineBad_if_both_Bad":
                 # reject data only if it passes none of the tests
                 # (BAD1 and BAD2) -> BAD
                 flags = ((flags==1) & (self.old_flags==1)).astype(int)
             I0change = np.where((flags == 0) & (self.old_flags == 1))[0]
             I1change = np.where((flags == 1) & (self.old_flags == 0))[0]
-            self.data['flagged_new'][I1change] = np.full(len(I1change), True)
-            self.data['unflagged_new'][I0change] = np.full(len(I0change), True)
+            self.data['flagged_new'][Is[I1change]] = np.full(len(I1change), True)
+            self.data['unflagged_new'][Is[I0change]] = np.full(len(I0change), True)
             I0 = np.where(flags == 0)[0]
             I1 = np.where(flags == 1)[0]
             self.ui["stations"].value = "%d | %d (%.2f %%) | %d | %d" % (len(Is), len(I1), 100.0 * len(I1) / len(Is), len(I1change), len(I0change))
         
         Iflagged_all_tests = np.where(self.data['test_code'] != -99)[0]
         self.data['test_code'][Is[I1]] = np.full(len(I1), self.number_tests)
+        print("Code assigned", self.number_tests)
         Iflagged_all_tests = np.where(self.data['test_code'] != -99)[0]
 
         self.data['flagged_least1'][Is[I1]] = np.full(len(I1), True)
@@ -871,6 +884,7 @@ class App():
 
         self.set_apply_button()
         self.old_flags = copy.deepcopy(flags)
+        self.old_Is = Is
         self.number_tests = self.number_tests + 1
         
     def set_dataset(self, index: int, datetime: int):
