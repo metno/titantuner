@@ -10,22 +10,36 @@ import titantuner.source
 import titantuner.source.titan
 import titantuner.source.frost
 
+#import ptvsd
+
+# TO DO set the debugger while using the interactive interface
+# see https://gist.github.com/kylrth/148f061c1f4126dca2bd73cb9ad33007
+# https://discourse.bokeh.org/t/debugging-recommendations/3934/6
+# attach to VS Code debugger if this script was run with BOKEH_VS_DEBUG=true
+#if os.environ['BOKEH_VS_DEBUG'] == 'true':
+#    # 5678 is the default attach port in the VS Code debug configurations
+#    print('Waiting for debugger attach')
+#    ptvsd.enable_attach(address=('localhost', 5678), redirect_output=True)
+#    ptvsd.wait_for_attach()
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches a titantuner server')
     parser.add_argument('-d', help='Directories or file patterns containing data', dest="directories_or_patterns", nargs='+')
     parser.add_argument('-p', type=int, default=8081, dest="port")
     parser.add_argument('--frostid', help="Load data from frost, using this ID")
+    parser.add_argument('--debug', help="Bokeh server in debug mode",  action="store_true")
 
     args = parser.parse_args()
     run(**vars(args))
 
-def run(directories_or_patterns, port, frostid):
+def run(directories_or_patterns, port, frostid, debug):
     app_handle = lambda doc: application(doc, directories_or_patterns, frostid)
     server = Server(
             app_handle,  # list of Bokeh applications
             port=port,
             allow_websocket_origin=[f"localhost:{port}"],
+            debug=debug,
         )
 
     # start timers and services and immediately return
