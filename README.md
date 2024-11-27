@@ -73,10 +73,10 @@ lat;lon;elev;value;prid;dqc
 58.2968;8.4620;70.0;14.60;5;7
 ```
 ## Ressources
-Need for more info? Please have a look to the [Titantuner Wiki](https://github.com/metno/titantuner/wiki)
+- Need for **more info and examples?** Please have a look to the [Titantuner Wiki](https://github.com/metno/titantuner/wiki)
 
-Found a bug? Please report it in the issue tracker at [Titantuner Issues](https://github.com/metno/titantuner/issues).
+- **Found a bug?** Please report it in the issue tracker at [Titantuner Issues](https://github.com/metno/titantuner/issues).
 
-Want to know more about which titanlib parameter to use, or share the parameters suitable for your usage? Please check [Titanlib Settings](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
+- Want to know more about **which titanlib parameters to use**, or **share the parameters suitable for your usage?** Please check [Titanlib Settings](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
 
-You are also welcome to give feedbacks or ask questions on [Titanlib Discussions](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
+- You are also welcome to give **feedbacks** or **ask questions** on [Titanlib Discussions](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
