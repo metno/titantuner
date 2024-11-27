@@ -9,6 +9,8 @@ import titantuner
 import titantuner.source
 import titantuner.source.titan
 import titantuner.source.frost
+import glob
+import os
 
 #import ptvsd
 
@@ -22,6 +24,10 @@ import titantuner.source.frost
 #    ptvsd.enable_attach(address=('localhost', 5678), redirect_output=True)
 #    ptvsd.wait_for_attach()
 
+def validate_path(path):
+    """Check if the path is a valid directory or file pattern."""
+    if not os.path.isdir(path) and not glob.glob(path):  # If it's a file pattern (e.g., *.txt)
+        raise argparse.ArgumentTypeError(f"'{path}' is not a valid directory or file pattern.")
 
 def main():
     parser = argparse.ArgumentParser(description='Launches a titantuner server')
@@ -29,8 +35,11 @@ def main():
     parser.add_argument('-p', type=int, default=8081, dest="port")
     parser.add_argument('--frostid', help="Load data from frost, using this ID")
     parser.add_argument('--debug', help="Bokeh server in debug mode",  action="store_true")
-
+    # protection against writing for instance -debug, read as -d ebug
     args = parser.parse_args()
+    if args.directories_or_patterns:
+        for path in args.directories_or_patterns:
+            validate_path(path)
     run(**vars(args))
 
 def run(directories_or_patterns, port, frostid, debug):
