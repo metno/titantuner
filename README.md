@@ -1,7 +1,7 @@
 # Titantuner
 The titantuner is a web interface for tuning the many parameters of quality control methods in [titanlib](https://github.com/metno/titanlib).
 
-![Example of titantuner](extras/image.jpg)
+![Example of titantuner](extras/pictures/intro.jpg)
 
 ## Installation
 
@@ -28,6 +28,12 @@ Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT res
 Guess), and set the test parameters in the UI. Then click on the update button (below the parameters)
 to see the map showing the results of the tests.
 
+There is a demo data file to start right away using:
+
+```bash
+titantuner -d ./extras/*.txt
+```
+
 ## Running titantuner on your own data
 
 Titantuner can parse data files organzed as follows:
@@ -52,6 +58,8 @@ Ongoing development. This function aims at finding optimized parameters for qual
 running the autotune function as it is, three parameters are optimized for the buddy check run on temperature
 observations. These optimized parameters are the search radius, the minimum number of buddies a station can
 have, and the variance threshold for flagging the station.
+
+Example of usage:
 
 ```bash
 ./titantuner/autotune.py obs_ta_20230924T12Z.txt
