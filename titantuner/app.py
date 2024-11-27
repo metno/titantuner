@@ -868,7 +868,10 @@ class App():
         self.data['flagged_least1'][Is[I1]] = np.full(len(I1), True)
         self.plot_config(plot_orange_if_possible=True, first_map=False)
         self.set_root(self.p)
-        self.ui["mean"].value = "%.1f" % (np.nanmean(values_to_test_Is[I0]))
+        if len(I0):
+            self.ui["mean"].value = "%.1f" % (np.nanmean(values_to_test_Is[I0]))
+        else:
+            self.ui["mean"].value = "No valid value left"
 
 
         # self.dh.data = {'y': yy_Is, 'x': xx_Is
