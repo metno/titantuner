@@ -1,7 +1,7 @@
 # Titantuner
 The titantuner is a web interface for tuning the many parameters of quality control methods in [titanlib](https://github.com/metno/titanlib).
 
-![Example of titantuner](extras/pictures/intro.jpg)
+![Example of titantuner](extras/pictures/intro.png)
 
 ## Installation
 
