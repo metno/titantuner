@@ -269,7 +269,7 @@ class App():
         ui["stations"] = TextInput(value="None", title="Stations: total | removed | new flagged | new unflag.")
         ui["mean"] = TextInput(value="None", title="Average observed [%s]" % self.units)
 
-        # Choose test combinaison
+        # Choose test combination
         dropdown = Select(title="Combine test with previous test", background="cyan", options=list(dico_combine_test_code2ui.values()), 
                           value= dico_combine_test_code2ui[self.combine_test])
         dropdown.on_change("value", self.choose_combine_test_handler)
@@ -846,7 +846,7 @@ class App():
                 print("2nd combined test has flagged ", len(np.where(flags==1)))
                 print("previous test had flagged ", len(np.where(flags==1)))
                 flags = ((flags==1) | (self.old_flags==1)).astype(int)
-                print("After combinaison, test has flagged: ", len(np.where(flags==1)))
+                print("After combination, test has flagged: ", len(np.where(flags==1)))
 
             elif self.combine_test == "combineBad_if_both_Bad":
                 # reject data only if it passes none of the tests
@@ -941,7 +941,7 @@ class App():
         RADIUS = 6378137.0 # in meters on the equator
         return np.radians(a) * RADIUS
     
-dico_combine_test_code2ui = {"single": "Apply test (no combinaison / first test)",
+dico_combine_test_code2ui = {"single": "Apply test (no combination / first test)",
                                 "chain": "Combine test: further test only unflagged values",
                                 "combineOK_if_1_OK": "Combine: pass if pass this test or previous, reject others", # softer test
                                 "combineOK_if_both_OK": "Combine: pass if pass both this test and previous, reject others", # harder test
