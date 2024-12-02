@@ -537,7 +537,7 @@ class App():
         self.last_lonrange = self.ui["lonrange"].value
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
-        if(not xx):
+        if(not len(xx)>0):
             self.set_apply_button()
             raise ValueError("Please select a valid dataset!")
         values_to_test = self.values
