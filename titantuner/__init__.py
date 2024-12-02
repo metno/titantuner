@@ -66,7 +66,9 @@ def unixtime_to_date(unixtime):
     return date, hour
 
 class InvalidDatasetException(Exception):
-    pass
+    def __init__(self, filename):
+        self.filename = filename
+        super().__init__(f"ERROR: This dataset {filename} cannot be read!")
 
 
 def main():
