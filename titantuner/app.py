@@ -537,6 +537,9 @@ class App():
         self.last_lonrange = self.ui["lonrange"].value
         yy = self.lat2y(self.lats)
         xx = self.lon2x(self.lons)
+        if(not xx):
+            self.set_apply_button()
+            raise ValueError("Please select a valid dataset!")
         values_to_test = self.values
 
         frac = self.ui["frac"].value
@@ -573,7 +576,7 @@ class App():
 
         if self.combine_test == "chain":
             Is = np.where(self.data['test_code']==-99)[0]
-            print(f"start, chained on indexes", Is)
+            # DEBUG # print(f"start, chained on indexes", Is)
         else:
             if self.number_tests == 0:
                 Is = np.array(range(len(Iall_tests)))

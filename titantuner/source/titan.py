@@ -16,8 +16,9 @@ class TitanSource(Source):
 
         self.names = dict()
         for filename in filenames:
-            name = os.path.basename(filename)
-            self.names[name] = filename
+            if not os.path.isdir(filename):
+                name = os.path.basename(filename)
+                self.names[name] = filename
 
     @staticmethod
     def get_filenames(directories_or_patterns: list):
@@ -49,8 +50,11 @@ class TitanSource(Source):
         try:
             lats, lons, elevs, values = self.parse_titan_file(filename)
         except Exception as e:
-            raise titantuner.InvalidDatasetException()
-
+            # TODO: I wanted to remove  the invalid keys from the list but somehow if I do
+            # self.names.pop(key)
+            # then I have issues in case of having only 1 other valid file, for some reason the valid name cannot be selectd one
+            # (if more than 1 valid name, it seems to behave ok otherwise)
+            raise titantuner.InvalidDatasetException(filename)
         # Figure out what variable this dataset contains
         if filename.find('_ta_') >= 0:
             variable = 'ta'
