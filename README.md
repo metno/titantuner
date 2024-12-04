@@ -28,7 +28,7 @@ Select the test you want to perform (SCT, Isolation, Buddy, Buddy event, SCT res
 Guess), and set the test parameters in the UI. Then click on the update button (below the parameters)
 to see the map showing the results of the tests.
 
-There is a demo data file to start right away using:
+There is are demo data files to start right away using:
 
 ```bash
 titantuner -d ./extras/*.txt
