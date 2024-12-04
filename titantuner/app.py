@@ -417,7 +417,7 @@ class App():
             self.p.legend.title = "Test type"
 
     def color_picker_initialize(self):
-        picker = ColorPicker(title="Color of the last flagged points", color="red", aspect_ratio=2)
+        picker = ColorPicker(title="Color of flagged points", color="red", aspect_ratio=2)
         picker.on_change("color", self.set_marker_color)
         self.picker = picker
     
@@ -482,6 +482,10 @@ class App():
         # self.keep_color_marker = True # Forcing not triggering the content of the on_change function linked to the picker
         # NOTE Ideally the picker should only change the color, not refresh all the points,
         # (only change the color glyph of the right glyph, but to do so one need to store/find back the name/id of the glyph) 
+        # FIXME
+        # in practice the GUI behavior is not the same if called
+        # after using "first new test" (change color for next flagged values)
+        #  or after "combine" (change color for the last flagged point)
         if(self.keep_color_marker==False):
             self.marker_color = new
             if(len(self.colors)>self.number_tests):
