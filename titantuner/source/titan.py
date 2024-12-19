@@ -19,6 +19,8 @@ class TitanSource(Source):
             if not os.path.isdir(filename):
                 name = os.path.basename(filename)
                 self.names[name] = filename
+        if len(self.names)==0:
+            raise ValueError(f"No files to read in {directories_or_patterns} or no file following the pattern {directories_or_patterns}.")
 
     @staticmethod
     def get_filenames(directories_or_patterns: list):
