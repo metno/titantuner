@@ -899,6 +899,8 @@ class App():
         
     def set_dataset(self, index: int, datetime: int):
         unixtime = titantuner.date_to_unixtime(datetime // 100) + datetime % 100 * 3600
+        if not len(self.source.keys)>index:
+            raise ValueError(f"Cannot set the dataset, source {self.source.keys} does not contain index {index}")
         keys = [self.source.keys[index]]
         index = int(index)
         self.dataset_index = index
