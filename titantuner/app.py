@@ -21,15 +21,62 @@ import titantuner
 
 displaid_label_buttons = ["Obs", "BoxCoxObs", "Elev", "SCT"]
 
-def apply_BoxCox(values, BoxCox):
+def apply_BoxCox(values, power):
+    values = np.array(values)
     values_to_test = copy.deepcopy(values)
-    if BoxCox == 0:
-        ix0 = np.where(values == 0)[0]
-        values_to_test[ix0] = 0.0001
-        values_to_test = np.log(values_to_test)
-    elif BoxCox > 0:
-        values_to_test = (pow(values, BoxCox) - 1) / BoxCox
+    if power == 0:
+        ix_0 = np.where(values_to_test == 0)[0]
+        values_to_test[ix_0] = 0.0001
+        if len(ix_0)>0:
+            print(f"Warning 0 values replaced by 0.0001.")
+        ix_pos = np.where(values_to_test >= 0)[0]
+        values_to_test[ix_pos] = np.log(values_to_test[ix_pos])
+        if len(ix_pos) != len(values):
+            print(f"Warning, values < 0 not transformed with a box cox transformation. {len(values)-len(ix_pos)} untransformed value(s)")
+    elif power > 0:
+        ix_pos = np.where(values_to_test >= 0)[0]
+        values_to_test[ix_pos] = (pow(values_to_test[ix_pos], power) - 1) / power
+        if len(ix_pos) != len(values):
+            print(f"Warning, negative values not transformed with a box cox transformation. {len(values)-len(ix_pos)} untransformed value(s)")
+    else:
+        raise ValueError(f"StartedBoxCox: Power must be >=0")
     return values_to_test
+
+def apply_StartedBoxCox(values, power, scaling):
+    values = np.array(values)
+    values_to_test = copy.deepcopy(values)
+    if scaling<=0:
+        raise ValueError(f"StartedBoxCox: scaling must be >0. Is {scaling}")
+    if power == 0:
+        ix_above_thr = np.where(values_to_test>scaling)[0]
+        values_to_test[ix_above_thr] = scaling * (1 + np.log(values_to_test[ix_above_thr]/scaling))
+    elif(power>0):
+        ix0 = np.where(values_to_test == 0)[0]
+        values_to_test[ix0] = 0
+        ix_above_thr = np.where(values_to_test>scaling)[0]
+        values_to_test[ix_above_thr] = scaling * (1 + (((pow(values_to_test[ix_above_thr]/scaling, power)) - 1) / power));
+    else:
+        raise ValueError(f"StartedBoxCox: Power must be >=0")
+    return values_to_test
+
+def apply_PowerTransform(values, power, scaling):
+    if scaling <=0:
+        print(f"Apply box Cox transformation with power {power}")
+        values = apply_BoxCox(values, power)
+    else:
+        print(f"Apply Started box Cox transformation with power {power} and scaling {scaling}")
+        values = apply_StartedBoxCox(values, power, scaling)
+    return(values)
+
+def apply_PowerTransform(values, power, scaling):
+    if scaling <=0:
+        print(f"Apply box Cox transformation with power {power}")
+        values = apply_BoxCox(values, power)
+    else:
+        print(f"Apply Started box Cox transformation with power {power} and scaling {scaling}")
+        values = apply_StartedBoxCox(values, power, scaling)
+    return(values)
+
 
 def displayed_value(variable, value):
     if variable == "rr" and value < 1 and value > 0:
@@ -53,7 +100,7 @@ class App():
         values_max = self.data['values'][Is] + self.ui[delta_key].value * np.ones(len(Is))
         return values_min, values_max
 
-    def calculate_val_minmax(self, values_min, values_max, delta_key, fact_key, Is, BoxCox):
+    def calculate_val_minmax(self, values_min, values_max, delta_key, fact_key, Is, boxcox_power, boxcox_scaling):
         values_min[np.where(values_min < 0)[0]] = 0
         values_min_alt = self.data['values'][Is] - self.ui[fact_key].value * np.ones(len(Is)) * self.data['values'][Is]
         values_min_alt[np.where(values_min_alt < 0)[0]] = 0
@@ -66,8 +113,8 @@ class App():
         ix_max = np.where(values_max_alt > values_max)[0]
         values_max[ix_max] = values_max_alt[ix_max]
         
-        values_min = apply_BoxCox(values_min, BoxCox)
-        values_max = apply_BoxCox(values_max, BoxCox)
+        values_min = apply_PowerTransform(values_min, boxcox_power, boxcox_scaling)
+        values_max = apply_PowerTransform(values_max, boxcox_power, boxcox_scaling)
 
         return values_min, values_max
 
@@ -152,7 +199,8 @@ class App():
             ui["dhmin"] = Slider(start=0, end=20000, value=10000, step=1000, title="Min horiz OI distance [m]")
             ui["dz"] = Slider(start=100, end=1000, value=200, step=100, title="Vertical OI distance [m]")
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
 
             #self.r4 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="red")
@@ -182,7 +230,8 @@ class App():
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # SCT resistant end
 
@@ -201,7 +250,8 @@ class App():
             ui["kth"] = Slider(start=1, end=200, value=3, step=1, title="use the k-th closest obs for horiz OI distance")
             ui["dz"] = Slider(start=100, end=1000, value=10000, step=100, title="Vertical OI distance [m]")
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # SCT dual end
 
@@ -223,7 +273,8 @@ class App():
             ui["background_elab"] = RadioButtonGroup(labels=["VerticalProfile", "VerticalProfileTheilSen", "MeanOuterCircle", "MedianOuterCircle", "External"], active=0)
             ui["basic"] = RadioButtonGroup(labels=["Basic", "NOT Basic"], active=0)
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=2, value=-1, step=.1, title="Box-Cox Scaling (no scaling if scaling =0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
         # FGT end
 
@@ -247,7 +298,8 @@ class App():
             ui["min_std"] = Slider(start=0.1, end=5, value=1, step=0.1, title="Minimum neighbourhood std [%s]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy check, end
 
@@ -261,7 +313,8 @@ class App():
             ui["elev_gradient"] = Slider(start=-5, end=10, value=0, step=0.5, title="Elevation gradient [%s/km]" % self.units)
             ui["num_iterations"] = Slider(start=1, end=10, value=1, step=1, title="Number of iterations")
             if self.variable == 'rr':
-                ui["BoxCox"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox power (unactive if BoxCox<0 or val <0)")
+                ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
+                ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
             ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
         # Buddy-event check, end
 
@@ -615,9 +668,8 @@ class App():
             dhmin = self.ui["dhmin"].value
             dzmin = self.ui["dzmin"].value
             dz = self.ui["dz"].value
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
-
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                    values_to_test_Is = apply_PowerTransform(values_to_test_Is, self.ui["BoxCoxPower"].value, self.ui["BoxCoxScaling"].value)
             # flags = titanlib.range_check(self.values, [new[0]], [new[1]])
             # flags = titanlib.range_check_climatology(self.lats[Is], self.lons[Is], elevs_Is, self.data['values'][Is], 1577836800, [new[1]], [new[0]])
 
@@ -649,12 +701,13 @@ class App():
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
 
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                BoxCox = self.ui["BoxCox"].value
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
-                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
-                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                boxcox_power = self.ui["BoxCoxPower"].value
+                boxcox_scaling = self.ui["BoxCoxScaling"].value
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, boxcox_power, boxcox_scaling)
+                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, boxcox_power, boxcox_scaling)
+                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, boxcox_power, boxcox_scaling)
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, boxcox_power, boxcox_scaling)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -716,8 +769,8 @@ class App():
                 t_condition=titanlib.Leq
 
             debug=False
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, self.ui["BoxCoxPower"].value, self.ui["BoxCoxScaling"].value)
 
             flags = titanlib.sct_dual(points, values_to_test_Is,
                     is_obs_to_check, t_event* np.ones(len(Is)), t_condition,
@@ -742,12 +795,13 @@ class App():
             values_mina, values_maxa = self.initialize_val_minmax("a_delta", Is)
             values_minv, values_maxv = self.initialize_val_minmax("v_delta", Is)
             
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                BoxCox = self.ui["BoxCox"].value
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
-                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, BoxCox)
-                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, BoxCox)
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, BoxCox)
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                boxcox_power = self.ui["BoxCoxPower"].value
+                boxcox_scaling = self.ui["BoxCoxPower"].scaling
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is,  boxcox_power, boxcox_scaling)
+                values_mina, values_maxa = self.calculate_val_minmax(values_mina, values_maxa, "a_delta", "a_fact", Is, boxcox_power, boxcox_scaling)
+                values_minv, values_maxv = self.calculate_val_minmax(values_minv, values_maxv, "v_delta", "v_fact", Is, boxcox_power, boxcox_scaling)
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, boxcox_power, boxcox_scaling)
 
             if self.ui["basic"].active == 0:
                 basic=True
@@ -786,8 +840,8 @@ class App():
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)         
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, self.ui["BoxCoxPower"].value, self.ui["BoxCoxScaling"].value)
             flags = titanlib.buddy_check(points, values_to_test_Is,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["threshold"].value, self.ui["elev_range"].value,
@@ -797,8 +851,8 @@ class App():
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
-            if "BoxCox" in self.ui and self.ui["BoxCox"].value >= 0:
-                values_to_test_Is = apply_BoxCox(values_to_test_Is, self.ui["BoxCox"].value)
+            if "BoxCoxPower" in self.ui and self.ui["BoxCoxPower"].value >= 0:
+                values_to_test_Is = apply_PowerTransform(values_to_test_Is, self.ui["BoxCoxPower"].value, self.ui["BoxCoxScaling"].value)
             flags = titanlib.buddy_event_check(points, values_to_test_Is,
                     [self.ui["distance"].value], [self.ui["num"].value],
                     self.ui["event_threshold"].value,
@@ -869,7 +923,7 @@ class App():
         
         Iflagged_all_tests = np.where(self.data['test_code'] != -99)[0]
         self.data['test_code'][Is[I1]] = np.full(len(I1), self.number_tests)
-        print("Code assigned", self.number_tests)
+        print("Code assigned for the test: ", self.number_tests)
         Iflagged_all_tests = np.where(self.data['test_code'] != -99)[0]
 
         self.data['flagged_least1'][Is[I1]] = np.full(len(I1), True)
