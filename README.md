@@ -79,4 +79,4 @@ lat;lon;elev;value;prid;dqc
 
 - Want to know more about **which titanlib parameters to use**, or **share the parameters suitable for your usage?** Please check [Titanlib Settings](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
 
-- You are also welcome to give **feedbacks** or **ask questions** on [Titanlib Discussions](https://github.com/metno/titanlib/discussions/categories/titanlib-settings)
+- You are also welcome to give **feedbacks** or **ask questions** on [Titanlib Discussions](https://github.com/metno/titanlib/discussions/categories/titanlib-settings) or contact us at titanlib@met.no
