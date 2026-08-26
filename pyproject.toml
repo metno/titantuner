@@ -11,6 +11,7 @@ description = "A package for tuning quality control parameters in titanlib"
 keywords = ["meteorology", "observations", "quality control"]
 license = {text = "MIT"}
 readme = "README.md"
+requires-python = ">=3.12"
 classifiers = [
     'Development Status :: 3 - Alpha',
     'Programming Language :: Python :: 3',
@@ -21,7 +22,7 @@ dependencies = [
     "numpy<2",
     "requests",
     "scipy",
-    "titanlib>=0.3.3",
+    "titanlib>=0.3.4.dev4",
 ]
 
 dynamic = ["version"]

@@ -1,5 +1,6 @@
 import calendar
 import datetime
+import importlib
 import numbers
 import os
 import pkgutil
@@ -10,11 +11,12 @@ import numpy as np
 VERSION = "0.1.1"
 
 __all__ = []
-for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
-    if module_name != "__main__":
-        __all__.append(module_name)
-        _module = loader.find_module(module_name).load_module(module_name)
-        globals()[module_name] = _module
+for _importer, module_name, is_pkg in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
+    _bare_name = module_name.split(".")[-1]
+    if _bare_name != "__main__":
+        __all__.append(_bare_name)
+        _module = importlib.import_module(module_name)
+        globals()[_bare_name] = _module
 
 
 def date_to_unixtime(date, hour=0, min=0, sec=0):
