@@ -21,6 +21,24 @@ import titantuner
 
 displaid_label_buttons = ["Obs", "BoxCoxObs", "Elev", "SCT"]
 
+DQC_FLAG_DESCRIPTIONS = {
+    0: "OK", # in preqc, 0 is supposed to be for ok obs. The other descriptions can be changed as wished.
+    2: "Range check",
+    3: "Climate Range",
+    4: "Buddy check",
+    5: "SCT",
+    6: "DEM check",
+    7: "Isolation",
+    10: "Cross check",
+    13: "Buddy event",
+    70: "Aggcheck3D",
+    71: "Aggcheck3D buddy event",
+    72: "Aggcheck3D buddy check",
+    80: "Aggcheck1D",
+    81: "Aggcheck1D buddy event",
+    82: "Aggcheck1D buddy check",
+}
+
 def apply_BoxCox(values, power):
     values = np.array(values)
     values_to_test = copy.deepcopy(values)
@@ -118,7 +136,7 @@ class App():
 
         return values_min, values_max
 
-    def add_labels(self, Is, obs_values, boxcox_values, sct, xx, yy, elevs):
+    def add_labels(self, Is, obs_values, boxcox_values, sct, xx, yy, elevs, dqc_values=None):
         selected_labels = [self.ui["labels"].labels[i] for i in self.ui["labels"].active]
         texts = []
         for t in range(len(xx)):
@@ -135,6 +153,9 @@ class App():
                 if len(sct)>0:
                 # sct for previous tests is not stored
                     curr += ["%.1f" % sct[t]]
+            if "DQC" in selected_labels:
+                if dqc_values is not None:
+                    curr += ["%d" % dqc_values[t]]
             texts += ['\n'.join(curr)]
         self.data['labels'][Is] = texts
 
@@ -160,14 +181,15 @@ class App():
         # titanlib_tests = [("SCT", "sct"), ("Isolation", "isolation"), ("Buddy", "buddy"),
         #                   ("Buddy event", "buddy_event"), ("SCTres", "sctres"), ("SCTdual", "sctdual"), ("FirstGuess", "fgt")]
         # Can also be done with a dictionary, but I think it exists a more compact syntax using duple
-        titanlib_tests = ["sctdual", "buddy_event", "buddy", "sct", "isolation", "sctres", "fgt"]
+        titanlib_tests = ["sctdual", "buddy_event", "buddy", "sct", "isolation", "sctres", "fgt", "preqc"]
 
         dropdown = Select(title="Type of test", background="cyan", options=titanlib_tests, aspect_ratio=2, value=self.ui_name)
         dropdown.on_change("value", self.choose_test_handler)
         value = dropdown.value
         ui["type"] = dropdown
 
-        ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
+        if value != "preqc":
+            ui["frac"] = Slider(start=0, end=100, value=100, step=10, title="Fraction of stations to use [%]")
 
         # Set the viewing domain based on the available stations
         if len(self.lats) == 0:
@@ -184,6 +206,7 @@ class App():
         ui["lonrange"] = RangeSlider(start=lonrange[0], end=lonrange[1], value=lonrange, step=0.1, title="Longitude range")
 
         # Test specifics
+        dqc_label = ["DQC"] if self.dqc is not None else []
         # SCT
         if value == "sct":
             ui["nmin"] = Slider(start=5, end=1000, value=5, step=5, title="Minimum obs in box")
@@ -201,7 +224,7 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons + dqc_label, active=[0])
 
             #self.r4 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="red")
             #self.r3 = ph.quad(top=[1,2,3], bottom=0, left=self.edges[:-1], right=self.edges[1:], fill_color="navy")
@@ -232,7 +255,7 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons + dqc_label, active=[0])
         # SCT resistant end
 
         # SCT dual begin
@@ -252,7 +275,7 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1] + dqc_label, active=[0])
         # SCT dual end
 
         # FGT begin
@@ -275,20 +298,20 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=2, value=-1, step=.1, title="Box-Cox Scaling (no scaling if scaling =0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons, active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons + dqc_label, active=[0])
         # FGT end
 
         # Isolation test, begin
         elif value == "isolation":
-            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Number of additional observations")
+            ui["num"] = Slider(start=1, end=20, value=5, step=1, title="Number of additional observations")
             ui["radius"] = Slider(start=0.25, end=50, value=15, step=0.25, title="Radius [km]")
-            ui["labels"] = CheckboxButtonGroup(labels=[displaid_label_buttons[0], displaid_label_buttons[2]], active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=[displaid_label_buttons[0], displaid_label_buttons[2]] + dqc_label, active=[0])
         # Isolation test, end
         
         # Buddy check, begin
         elif value == "buddy":
             ui["distance"] = Slider(start=1000, end=100000, value=5000, step=1000, title="Distance limit [m]")
-            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
+            ui["num"] = Slider(start=1, end=20, value=5, step=1, title="Minimum obs required")
             ui["threshold"] = Slider(start=0.1, end=5, value=2, step=0.1, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
             if self.variable == 'rr':
@@ -300,13 +323,13 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1] + dqc_label, active=[0])
         # Buddy check, end
 
         # Buddy-event check, begin
         elif value == "buddy_event":
             ui["distance"] = Slider(start=1000, end=100000, value=5000, step=1000, title="Distance limit [m]")
-            ui["num"] = Slider(start=1, end=10, value=5, step=1, title="Minimum obs required")
+            ui["num"] = Slider(start=1, end=20, value=5, step=1, title="Minimum obs required")
             ui["event_threshold"] = Slider(start=0, end=5, value=0.2, step=0.1, title="Event threshold")
             ui["threshold"] = Slider(start=0.05, end=5, value=0.1, step=0.05, title="Threshold")
             ui["elev_range"] = Slider(start=100, end=1000, value=300, step=100, title="Maximum elevation difference [m]")
@@ -315,8 +338,33 @@ class App():
             if self.variable == 'rr':
                 ui["BoxCoxPower"] = Slider(start=-0.1, end=1, value=-1, step=.1, title="Box-Cox/StartedBCox power (none if <0 or val <0)")
                 ui["BoxCoxScaling"] = Slider(start=0, end=5, value=0, step=.1, title="Started Box-Cox scaling (usual Box-Cox if 0)")
-            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1], active=[0])
+            ui["labels"] = CheckboxButtonGroup(labels=displaid_label_buttons[0:-1] + dqc_label, active=[0])
         # Buddy-event check, end
+
+        # Pre-QC (dqc column), begin
+        elif value == "preqc":
+            if self.dqc is not None:
+                unique_flags = sorted(np.unique(self.dqc).tolist())
+                flag_labels = [str(f) for f in unique_flags if f != 0] # 0 is OK flag
+                button_flags = [f for f in unique_flags if f != 0]
+                default_active = [i for i, f in enumerate(button_flags) if f in {1, 2, 3, 6}]
+                lines = ["Flags found in file:"]
+                for f in unique_flags:
+                    if f == 0:
+                        continue
+                    desc = DQC_FLAG_DESCRIPTIONS.get(f, "Unknown")
+                    count = int(np.sum(self.dqc == f))
+                    lines.append(f"  {f}: {desc} ({count} obs)")
+                ui["dqc_info"] = Paragraph(text="\n".join(lines))
+                ui["dqc_flags_title"] = Paragraph(text="Select DQC flag values to treat as flagged:")
+                ui["dqc_flags"] = CheckboxButtonGroup(labels=flag_labels, active=default_active)
+            else:
+                ui["dqc_flags_title"] = Paragraph(
+                    text="No dqc column found in this dataset. The preqc test cannot be applied.",
+                    style={"color": "red", "font-weight": "bold", "font-size": "13px"},
+                )
+            ui["labels"] = CheckboxButtonGroup(labels=["Obs", "DQC"], active=[0])
+        # Pre-QC (dqc column), end
 
         ui["time"] = TextInput(value="None", title="Titanlib request time [s]")
         ui["stations"] = TextInput(value="None", title="Stations: total | removed | new flagged | new unflag.")
@@ -337,6 +385,10 @@ class App():
         #ui["background"] = dropdown
         self.ui = ui
         self.set_apply_button()
+        if value == "preqc" and self.dqc is None:
+            self.ui["apply_button"].disabled = True
+            self.ui["apply_button"].button_type = "danger"
+            self.ui["apply_button"].label = "Can't test"
         #ph = figure(title="Histogram") # , plot_height=800, plot_width=1200)
         #ui["histogram"] = ph
         self.edges = range(-20, 21)
@@ -599,7 +651,7 @@ class App():
             raise ValueError("Please select a valid dataset!")
         values_to_test = self.values
 
-        frac = self.ui["frac"].value
+        frac = self.ui["frac"].value if "frac" in self.ui else 100
         if len(self.lats) == 0:
             Ifrac = []
         else:
@@ -652,6 +704,7 @@ class App():
         xx_Is = xx[Iall_tests][Is]
         elevs_Is = self.elevs[Iall_tests][Is]
         values_to_test_Is = values_to_test[Iall_tests][Is]
+        dqc_Is = self.dqc[Iall_tests][Is] if self.dqc is not None else None
         points = titanlib.Points(self.lats[Iall_tests][Is], self.lons[Iall_tests][Is], elevs_Is)
 
         #----------------------------------------------------------------------
@@ -679,7 +732,7 @@ class App():
                     eps2 * np.ones(len(Is)))
 
             sct = np.array(sct)
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctres":
@@ -741,7 +794,7 @@ class App():
                     debug, basic )
 
             sct = np.array(sct)
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         if self.ui_type == "sctdual":
@@ -779,7 +832,7 @@ class App():
                     dhmin, dhmax, kth, dz,
                     t_test * np.ones(len(Is)),
                     debug )
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         if self.ui_type == "fgt":
@@ -831,12 +884,12 @@ class App():
                     debug, basic)
 
             sct = np.array(sct)
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, sct, xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         elif self.ui_type == "isolation":
             flags = titanlib.isolation_check(points, int(self.ui["num"].value), float(self.ui["radius"].value * 1000))
-            self.add_labels(Is, self.data['values'][Is], [], [], xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], [], [], xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy":
@@ -847,7 +900,7 @@ class App():
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000, self.ui["min_std"].value,
                     self.ui["num_iterations"].value)
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
 
         #----------------------------------------------------------------------
         elif self.ui_type == "buddy_event":
@@ -859,7 +912,19 @@ class App():
                     self.ui["threshold"].value, self.ui["elev_range"].value,
                     self.ui["elev_gradient"].value / 1000,
                     self.ui["num_iterations"].value)
-            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is)
+            self.add_labels(Is, self.data['values'][Is], values_to_test_Is, [], xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
+        #----------------------------------------------------------------------
+        elif self.ui_type == "preqc":
+            if self.dqc is None or "dqc_flags" not in self.ui:
+                print("Warning: dataset has no dqc column, all observations treated as OK")
+                flags = np.zeros(len(Is))
+            else:
+                selected_flag_values = set(
+                    int(self.ui["dqc_flags"].labels[i]) for i in self.ui["dqc_flags"].active
+                )
+                flags = np.array([1 if int(v) in selected_flag_values else 0 for v in dqc_Is])
+            self.add_labels(Is, self.data['values'][Is], [], [], xx_Is, yy_Is, elevs_Is, dqc_values=dqc_Is)
+
         #----------------------------------------------------------------------
         elif self.ui_type is None:
             flags = np.zeros(len(Is))
@@ -977,6 +1042,7 @@ class App():
         self.lons = self.dataset.lons
         self.elevs = self.dataset.elevs
         self.values = self.dataset.values
+        self.dqc = self.dataset.dqc
         self.variable = self.dataset.variable
         if self.variable == "ta":
             self.units = "C"

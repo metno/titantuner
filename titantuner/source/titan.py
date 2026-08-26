@@ -50,7 +50,7 @@ class TitanSource(Source):
     def load(self, key: str) -> titantuner.dataset.Dataset:
         filename = self.names[key]
         try:
-            lats, lons, elevs, values = self.parse_titan_file(filename)
+            lats, lons, elevs, values, dqc = self.parse_titan_file(filename)
         except Exception as e:
             # TODO: I wanted to remove  the invalid keys from the list but somehow if I do
             # self.names.pop(key)
@@ -64,7 +64,7 @@ class TitanSource(Source):
             variable = 'rr'
         print(f"Opening {filename}. Variable {variable}.")
         name = os.path.basename(filename)
-        dataset = titantuner.dataset.Dataset(name, lats, lons, elevs, values, None, variable)
+        dataset = titantuner.dataset.Dataset(name, lats, lons, elevs, values, None, variable, dqc=dqc)
         return dataset
 
     @staticmethod
@@ -75,6 +75,7 @@ class TitanSource(Source):
         lons = list()
         elevs = list()
         values = list()
+        dqc = list()
         with open(filename, 'r') as file:
             header = file.readline().strip().split(';')
             Ilat = header.index('lat')
@@ -85,6 +86,7 @@ class TitanSource(Source):
             else:
                 Iprovider = None
             Ivalue = header.index('value')
+            Idqc = header.index('dqc') if 'dqc' in header else None
             for line in file:
                 words = line.strip().split(';')
                 lat = float(words[Ilat])
@@ -108,9 +110,11 @@ class TitanSource(Source):
                     lons += [lon]
                     elevs += [elev]
                     values += [value]
+                    if Idqc is not None:
+                        dqc += [int(words[Idqc])]
                 except Exception as e:
                     print(e)
-        return np.array(lats), np.array(lons), np.array(elevs), np.array(values)
+        return np.array(lats), np.array(lons), np.array(elevs), np.array(values), (np.array(dqc, dtype=int) if dqc else None)
 
     @staticmethod
     def get_default_data_dir() -> str:
