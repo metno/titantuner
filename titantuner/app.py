@@ -3,6 +3,7 @@ import numpy as np
 import time
 import math
 import copy
+import os
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, gridplot
@@ -435,6 +436,9 @@ class App():
         self.p.title.align = "center"            
 
         tile_provider = get_provider(Vendors.CARTODBPOSITRON)
+        carto_api_key = os.environ.get("CARTO_API_KEY", "")
+        if carto_api_key:
+            tile_provider.url = tile_provider.url + f"?key={carto_api_key}"
         self.p.add_tile(tile_provider)
 
         if self.combine_test != "chain" and self.number_tests>0:
