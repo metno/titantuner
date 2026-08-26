@@ -6,7 +6,7 @@ import copy
 
 from bokeh.io import output_file, show
 from bokeh.layouts import column, row, gridplot
-from bokeh.models import Button, Title, Text, Label, Panel, ColumnDataSource, GMapOptions, BoxZoomTool
+from bokeh.models import Button, Title, Text, Label, ColumnDataSource, GMapOptions, BoxZoomTool
 from bokeh.models.widgets import RangeSlider, Slider, PreText, Paragraph, TextInput, Select, RadioButtonGroup, CheckboxButtonGroup, Dropdown, InputWidget
 from bokeh.models.widgets.widget import Widget
 from bokeh.models.renderers import TileRenderer
